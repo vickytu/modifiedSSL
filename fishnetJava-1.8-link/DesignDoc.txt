@@ -1,0 +1,111 @@
+Shona Hemmady
+CPSC 433 
+Assignment 4: TCP
+Design Document
+ 
+
+2.1 How TCP Manager, TCP Sock and Node behave when you receive a packet and when you send a packet.
+
+On receiving a packet, Node first checks to see if it is a packet sent with Transport 
+Protocol and then forwards the packet to the TCPManager. The TCPManager looks to see the
+destination of the packet and checks the hashtable of stored socket connections to find 
+the correct one. If it does not have it, TCPManager drops the packet. Otherwise, it 
+checks to see what type the packet is. If it is a SYN, and the receiving socket is a 
+listening socket, the TCPManager will send it to the listening socket and add it to the 
+SYN queue where it will wait for the application to accept it before sending an ACK. 
+
+If it is an ACK packet, the TCPManager will check to see what state the socket is in. If
+it is in SYN_SENT, then it is a client and the TCPManager updates the client to let it
+know that its connection is established. Otherwise, if it is not the ACK of the final
+sequence number, it is a packet ACK and then the TCPManager checks to see what the 
+sequence number is and whether that is in order or not. If it is, the TCPManager tells
+the client socket to update its ACK receiving counter, the windowsize, the estimated RTT
+and updates the queue of packets which were not acked and then allows the application
+to write more if it would like to. If the sequence number is not greater than the ACK
+number, it is not in order and then the TCPManager ignores it, unless it is the third 
+ACK of the same sequence number, in which case it retransmits the window beginning at 
+the sequence number requested. Finally, if it is an ACK with the sequence number of the
+FIN packet sent, that means the server is acknowledging the client's FIN which means the
+client can close now.
+
+If it is a data packet, the TCPManager checks to see if it is in order, and if it is, then
+it adds the data to the server's buffer. If it is not, it retransmits the correct 
+sequence number ACK. Then the TCPSocket allows the server to read more from the buffer
+which is filled with the correct data from the client.
+
+If it is a FIN packet, the TCPManager checks to see if it is still in the connected.
+If it is and it is a listening socket, the listening socket just sends an ACK back
+in case one of its worker threads closed but the ACK was lost. If it is a normal
+socket, the socket sends back an ACK and proceeds to shutdown itself. If the socket
+is closure pending (which should not happen but might), the socket will respond
+with an ACK again and continue to try to close.
+
+On sending a packet, the TCPSocket initiates this process when the application calls
+write. If there is enough space left in the window for the client to send data to the
+server, the socket will call its TCPManager to send the packets. The TCPManager will
+then take the transport packet from the socket and send it to the Node which sends it
+forward. While doing that, the TCPManager starts a timer with this sequence number to
+ensure it doesn't time out. 
+
+2.2 How do you handle the sliding window in your code? (Brief description and locate the core code for me.)
+
+I keep the number of bytes of my window size in the integer windowSize. I also keep 
+track of the number of bytes acknowledged in the integer acked and current sequence
+number in the integer seqNum (currently being sent by the client). These are
+all located at the top of the initialization of a TCPSock (lines 39, 40, and 44). 
+They are given values when the SYN is received on the server side and the ACK is 
+received on the client side in the TCPManager onReceive() method (lines 137 and 138
+in the TCPManager for the client side, and line 134 in the accept() method of
+TCPSock for the server).
+
+Once they are set, the acked number increases every time an ACK is sent out (server)
+or is received (client). This is in the onReceive() in the data section, lines
+220 and 158 in TCPManager respectively. For the client, every time bytes are written, 
+the sequence number is updated as well in the write() method of TCPSock. 
+
+Before the client can write information, the sliding window check is implemented
+through only allowing the client to write if ((seqNum - acked) >= windowSize)
+is not true (line 253 in TCPSock). If the gap is larger than or equal to the
+window size, the window is full and must wait for acknowledgements. 
+
+2.3 How do you handle flow control? (Same requirement as 2.2)
+
+The TCPManager upon receiving a packet adds it to the buffer (if space allows)
+and then when writing the ACK, takes the remaining space left in the 
+buffer and puts that as its window size. This happens in the TCPManager
+onReceive in the DATA section, or lines 222 and 223 for a successful
+data packet (in order). For an unsuccessful one, the TCPManager sends an
+ACK with the sequence number expected and also the size of the remaining
+space left in the buffer on lines 234 and 235. Both these places actually
+add 1 to this number to ensure that the sending will not die because of
+one moment when the buffer for the receiver fills up exactly and is left
+with 0 bits remaining.
+
+The TCPSock of the client takes that into account when checking to see whether
+or not the client is allowed to write to the server yet in the write method
+on line 258. Basically, it makes sure that the client will not write more 
+than the space left in the buffer.
+
+2.4 How do you handle congestion control? (Same requirement as 2.2)
+
+The windowSize is changing to allow for congestion control. The window
+size increases (additional increase) with a counter that allows the
+window to grow by one packet every time it successfully sends an entire window.
+This is implemented through a counter counting up to the window size
+for successful acks. This is the integer incrWin, which is incremented
+in the TCPManager on a successful ACK if it has not yet reached the window
+size, though if it has, it goes to 0 and the window size increases by the
+length of a packet. This is from lines 161 to 168 in the TCPManager.
+
+The multiplicative decrease is on the 3-duplicate-ACK check which happens
+on an ACK that is not in order check in TCPManager, lines 176-190. This
+checks to see if the ACK has been duplicated, and if it has 3 times,
+the window size becomes windowSize/2. The final part of congestion control
+comes with the timeouts, which are checked in the resend method of TCPSock
+which is the callback of timers set. If the timer's sequence number has
+not yet been called, it immediately puts the window size to the length
+of one packet again. The timeouts are also variable depending on the 
+estimated round trip time and the standard deviation based on the formulas
+on the slides. This is mostly calculated through calcTimeout and 
+updateTimeout methods in the TCPSock and are called on in the TCPManager
+ACK section of onReceive().

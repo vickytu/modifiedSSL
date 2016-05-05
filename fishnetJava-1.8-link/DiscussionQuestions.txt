@@ -1,0 +1,65 @@
+Shona Hemmady
+CPSC 433 
+Assignment 4: TCP
+Discussion Questions
+
+
+Diss1a: Your transport protocol implementation picks an initial sequence number when
+establishing a new connection. This might be 1, or it could be a random value. Which 
+is better, and why?
+
+The random value is better so that an intercepting connection will not be able to
+try to send an ACK back with 1 as its first guess and steal the connection. The 
+random value will only be transmitted to the intended receiver and so will require
+that one to reply. 
+
+
+Diss1b: Our connection setup protocol is vulnerable to the following attack. The 
+attacker sends a large number of connection request (SYN) packets to a particular
+node, but never sends any data. (This is called a SYN flood.) What happens to your 
+implementation if it were attacked in this way? How might you have designed the 
+initial handshake protocol (or the protocol implementation) differently to be more 
+robust to this attack? 
+
+My implementation would create many worker thread sockets (or depending on the type
+of server, would fill up the synQ and wait for the first one to be closed). This
+could be prevented by having a timeout of a certain amount of time for the server
+that has opened up (by calling it right after sending the ACK to let the client
+know it is open) to serve the requests of the attacker. If the server does not
+receive data for a certain amount of time, it will automatically send an ACK and 
+close itself. Another protocol to prevent this would be to require the four-way
+handshake. This way, the attacker would have to have each of its clients respond 
+and ACK the server's SYN sent in response to their SYNs. This would at least cause
+more trouble for them, and they may not know the entire protocol (possibly with the
+number and then the challenge and them having to echo the challenged number, etc), 
+which would cause our server to ignore them.
+
+
+Diss1c: What happens in your implementation when a sender 
+transfers data but never closes a connection? (This is called a FIN attack.) 
+How might we design the protocol differently to better handle this case?
+
+In my implementation, my server will continue to wait for more data to be sent
+or for a FIN to close it. We might be able to include a timeout for the server
+so that after a certain amount of time of idly waiting for the client to send 
+more data, the server will send a FIN/ACK and close itself. More robustly, to
+ensure that it will not close itself from actual clients, it could send a 
+heartbeat check to just make sure the client is still there (so just a quick
+message asking if the client is there, possibly checking by sending a number
+with it as well), and if it receives no response by a certain timeout, it will
+close itself.
+
+
+Diss2: Your transport protocol implementation picks the size of a buffer for received 
+data that is used as part of flow control. How large should this buffer be, and why?
+
+I would think this buffer should attempt to hold as much as the client will send
+(taking into account the sending rate) multiplied by the estimate of the amount
+of time each byte will spend in the buffer. If the sending rate of the client is
+r bps, and the amount of time each byte spends in the buffer is t sec (this is assuming
+that the sender is not incredibly slow at reading and that the rate r will 
+reduce if it is), then r*t = size of the buffer. In this particular client and 
+server, the client writes as fast as it can and the server reads as fast as it
+can, the buffer does not need to be too large because though the rate r is very
+large, the time t should be very small, so the result is a medium sized buffer
+(not too large).
