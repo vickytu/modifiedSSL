@@ -242,7 +242,7 @@ public class TCPManager {
         }
 
         // if type == Transport.FIN
-        else { 
+        else if (type == Transport.FIN){ 
             
             // receiver is connected
             if (receiver.isConnected()) {
@@ -271,6 +271,30 @@ public class TCPManager {
                 receiver.close();
                 return;
             }
+        }
+
+        else if (type == Transport.HELO){
+            return;
+        }
+
+        else if (type == Transport.CERT){
+            return;
+        }
+
+        else if (type == Transport.S_DONE){
+            return;
+        }
+
+        else if (type == Transport.C_KEYX){
+            return;
+        }
+
+        else if (type == Transport.FINISHED){
+            return;
+        }
+
+        else if (type == Transport.ALERT){
+            return;
         }
 
         return;

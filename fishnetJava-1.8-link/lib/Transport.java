@@ -20,6 +20,12 @@ public class Transport {
     public static final int ACK = 1;
     public static final int FIN = 2;
     public static final int DATA = 3;
+    public static final int HELO = 4;
+    public static final int CERT = 5;
+    public static final int S_DONE = 6;
+    public static final int C_KEYX = 7;
+    public static final int FINISHED = 8;
+    public static final int ALERT = 9;
 
     private int srcPort;
     private int destPort;
