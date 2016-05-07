@@ -284,7 +284,7 @@ public class TCPManager {
             }
             else if (!receiver.isServer && receiver.sslLib.isHelo()) {
                 receiver.sslLib.parseHelo(pay);
-                reciever.sslLib.setCert();
+                receiver.sslLib.setCert();
             }
             else {
                 System.out.println("WHAAAT?? Redundant helo ?!");
@@ -293,10 +293,12 @@ public class TCPManager {
             return;
         }
 
-        // CHECK FOR DEATH LWKEJFAIOPCJAO@#R@)R**R#$(T&)
         else if (type == Transport.CERT){
             if (!receiver.isServer &&  receiver.sslLib.isCert()) {
-                receiver.sslLib.parseCert(pay);
+                if(!receiver.sslLib.parseCert(pay)) {
+                    sslLib.die = true;
+                    return;
+                }
                 receiver.sslLib.setS_Done();
 
             }
@@ -336,7 +338,7 @@ public class TCPManager {
                 receiver.sslLib.setFinished();
             }
             else if (!receiver.isServer && receiver.sslLib.isHelo()) {
-                receiver.sslLib.parseFinished());
+                receiver.sslLib.parseFinished();
                 receiver.sslLib.setDone();
             }
             else {
