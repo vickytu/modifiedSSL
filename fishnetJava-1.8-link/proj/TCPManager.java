@@ -89,6 +89,7 @@ public class TCPManager {
         int srcPort = t.getSrcPort();
         int destPort = t.getDestPort();
         int tSeqNum = t.getSeqNum();
+        byte[] pay = t.getPayload();
 
         // search for TCPSock in hashmap by using source and destination
         // put in form destPort (localPort), from (destAddr), srcPort (destPort)
@@ -273,23 +274,74 @@ public class TCPManager {
             }
         }
 
+        // received a HELO packet
+        //FOR ALL THESE THINGS, HAVE DYING CHECKS !!!!!#)@#RQ#EI(UFW#($#PFE)IOFWOEPFJ#QWRF)
         else if (type == Transport.HELO){
+            if (receiver.isServer &&  receiver.sslLib.isNew()) {
+                receiver.sslLib.parseHelo(pay);
+                receiver.sslLib.setHelo();
+
+            }
+            else if (!receiver.isServer && receiver.sslLib.isHelo()) {
+                receiver.sslLib.parseHelo(pay);
+                reciever.sslLib.setCert();
+            }
+            else {
+                System.out.println("WHAAAT?? Redundant helo ?!");
+                
+            }
             return;
         }
 
+        // CHECK FOR DEATH LWKEJFAIOPCJAO@#R@)R**R#$(T&)
         else if (type == Transport.CERT){
+            if (!receiver.isServer &&  receiver.sslLib.isCert()) {
+                receiver.sslLib.parseCert(pay);
+                receiver.sslLib.setS_Done();
+
+            }
+            else {
+                System.out.println("WhaaaT?? Redundant cert ?!");
+            }
             return;
         }
 
         else if (type == Transport.S_DONE){
+            if (!receiver.isServer &&  receiver.sslLib.isCert()) {
+                receiver.sslLib.sendKey();
+                receiver.sslLib.sendFinished();
+                receiver.sslLib.setFinished();
+            }
+            else {
+                System.out.println("WhaaaT?? Redundant s_done ?!");
+            }
             return;
         }
 
         else if (type == Transport.C_KEYX){
+            if (!receiver.isServer && receiver.sslLib.isHelo()) {
+                receiver.sslLib.parseKey(pay);
+                receiver.sslLib.setC_Keyx();
+            }
+            else {
+                System.out.println("WhaaaT?? Redundant c_keyx ?!");
+            }
             return;
         }
 
         else if (type == Transport.FINISHED){
+            if (receiver.isServer && receiver.sslLib.isC_Keyx()) {
+                receiver.sslLib.parseFinished(pay);
+                receiver.sslLib.sendFinished();
+                receiver.sslLib.setFinished();
+            }
+            else if (!receiver.isServer && receiver.sslLib.isHelo()) {
+                receiver.sslLib.parseFinished());
+                receiver.sslLib.setDone();
+            }
+            else {
+                System.out.println("WhaaaT?? Redundant c_keyx ?!");
+            }
             return;
         }
 

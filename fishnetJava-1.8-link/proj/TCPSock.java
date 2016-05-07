@@ -22,6 +22,7 @@ public class TCPSock {
         LISTEN,
         SYN_SENT,
         ESTABLISHED,
+        HANDSHAKE,
         SHUTDOWN // close requested, FIN not sent (due to unsent data in queue) 
     }
 
@@ -50,6 +51,9 @@ public class TCPSock {
     private long devRTT;
     public int numPkts;
     public int incrWin;
+
+    public SSLlib sslLib;
+    public boolean isServer;
 
 
 

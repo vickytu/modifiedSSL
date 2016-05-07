@@ -47,6 +47,8 @@ public class TransferClient extends FishThread {
         this(manager, node, sock, amount,
              DEFAULT_CLIENT_INTERVAL,
              DEFAULT_BUFFER_SZ);
+        sock.isServer = false;
+        sock.sslLib.ssl_init();
     }
 
     public void execute() {
@@ -54,6 +56,10 @@ public class TransferClient extends FishThread {
             node.logOutput("connecting...");
             return;
         } else if (sock.isConnected()) {
+
+            while(sock.sslLib.ssl_connect() > 1) {
+                //sleep(10)
+            }
 
             if (startTime == 0) {
                 // record starting time
