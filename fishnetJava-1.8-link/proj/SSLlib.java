@@ -242,15 +242,36 @@ public class SSLlib{
 	// only called if is client
 	public int sendKey() {
 		// generate pre-master secret with rand_s
-		// encrypt pms with public key
-		// after this, generate symmetric key w/PMS & rand_s and rand_c
-		// genSymKey();
+		int pms = gen.nextInt();
+		// encrypt pms with public key (RSA)
+		Cipher c = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+		c.init(Cipher.ENCRYPT_MODE, pubKey);
+		byte[] pmsEncrypted = c.doFinal(pms.getBytes("UTF-8"));
+		sslSendPacket(Transport.C_KEYX, pmsEncrypted);
 		
+		// after this, generate symmetric key w/PMS & rand_s and rand_c (RC4)
+		// what input is needed?
+		symKey = genSymKey();
+		// return success or failure
+		return 1;
 	}
 	
-	public int parseKey() {
-		// decrypt pms with private key
+	public int parseKey(byte[] pay) {
+		// decrypt pms with private key (RSA)
+		Cipher c = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+		c.init(Cipher.DECRYPT_MODE, privKey);
+		byte[] pms = c.doFinal(pay);)
 		// after this, generate symmetric key w/PMS & rand_s and rand_c
+		symKey = genSymKey();
+		// return success or failure
+		return 1;
+	}
+	
+	public int getSymKey() {
+		// KeyGenerator keyGen = 
+		// generate symkey with pms, rand_s, rand_c
+		// sooooomehow...
+		// return something (should be the symKey, dunno what it should be yet)
 	}
 	
 	// make packet times which can be sent 
