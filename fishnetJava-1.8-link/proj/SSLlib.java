@@ -46,6 +46,7 @@ public class SSLlib{
         this.tcpMan = tcpMan;
         this.sessID = 0;
         this.sslState = SSLState.NEW;
+        
     }
 
     /*Return: 0 if 
@@ -60,6 +61,7 @@ public class SSLlib{
         //gen (rand)
         ver = "1";
         cipher = "supersecretcipher";
+        // read CA public key out of file CAkey_public.txt
     }
 
     public int ssl_accept(){
@@ -69,9 +71,11 @@ public class SSLlib{
             return 2;
         }
         else if (sslState == SSLState.NEW) {
-            // send HELO, CERT, and S_DONE
-            // change state to HELO (I've sent a HELO)
-            // okay if redundancy, then set wait to > RTT !!! (both transferclient and server)
+            // send HELO, CERT, and S_DONE, then change state
+            sendHelo();
+            sendCert();
+            sendS_done();
+            sslState = SSLState.HELO;
             return 2;
 
         }
@@ -202,6 +206,29 @@ public class SSLlib{
             -1 shutdown unsuccessful bc of fatal error/other bad things*/
     public int ssl_shutdown(){
         return 0;
+    }
+
+    public void sendCert() {
+
+        //write the certificate signing request
+
+
+
+        //simulate certifying authority:
+            //get private key from CAkey_private.txt
+            //sign cert with SHA2 hash and key
+
+        //pack message, signature into byte array payload
+        sslSendPacket(Transport.CERT, payload);
+
+    }
+
+    public int parseCert(byte[] payload) {
+        //unpack payload
+        //split into message and signature
+        //get public key from CAkey_public.txt
+        //compare hash(message) with decrypt(signature)
+
     }
 
 }
