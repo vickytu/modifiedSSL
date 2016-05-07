@@ -62,7 +62,8 @@ public class TransferServer extends FishThread {
         if (!serverSock.isClosed()) {
             // try to accept an established connection
             TCPSock connSock = serverSock.accept();
-
+            while(connSock.ssl_connect() > 1) {
+            }
             if (connSock == null) return;
 
             // start a worker thread to serve the new connection
