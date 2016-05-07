@@ -19,7 +19,7 @@ public class SSLlib{
     public TCPSock sock;
     public TCPManager tcpMan;
     public SSLState sslState;
-    private Rand gen = null;
+    private Random gen = null;
     private int pubKey = null;
     private int privKey = null;
 
@@ -28,6 +28,9 @@ public class SSLlib{
     public String ver = null;
     public String cipher = null;
     public int sessID = null;
+
+    public int rand_c;
+    public int rand_s;
 
     enum SSLState {
         // protocol states, all of these are after the action has been done, so HELO = HELO_SENT
@@ -46,6 +49,35 @@ public class SSLlib{
         this.tcpMan = tcpMan;
         this.sessID = 0;
         this.sslState = SSLState.NEW;
+        this.gen = new Random();
+    }
+
+    public void sendHelo(){
+        String helo = "";
+        if (sock.isServer == true){
+            rand_s = gen.nextInt(); //may have problems if sendHelo is called multiple times
+            helo = String.format("%s, %s, %d, %d", ver, cipher, sessID, rand_s);
+        }else{
+            rand_c = gen.nextInt();
+            helo = String.format("%s, %s, %d, %d", ver, cipher, sessID, rand_c);
+        }
+        byte[] payload = helo.getBytes(StandardCharsets.UTF_8); 
+        sslSendPacket(Treanport.HELO, payload);
+    }
+
+    public void parseHelo(byte[] pay){
+        String helo = new String(pay, StandardCharsets.UTF_8);
+        String delims = "[,]";
+        String[] tokens = helo.split(delims);
+        ver = token[0];
+        cipher = token[1];
+        sessID = Integer.parseInt(token[2]);
+        int rand = Integer.parseInt(token[3]);
+        if (sock.isServer == true){
+            rand_c = rand;
+        }else{
+            rand_s = rand;
+        }        
     }
 
     /*Return: 0 if 
