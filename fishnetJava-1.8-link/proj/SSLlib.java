@@ -238,6 +238,34 @@ public class SSLlib{
     public int ssl_shutdown(){
         return 0;
     }
+	
+	// only called if is client
+	public int sendKey() {
+		// generate pre-master secret with rand_s
+		// encrypt pms with public key
+		// after this, generate symmetric key w/PMS & rand_s and rand_c
+		// genSymKey();
+		
+	}
+	
+	public int parseKey() {
+		// decrypt pms with private key
+		// after this, generate symmetric key w/PMS & rand_s and rand_c
+	}
+	
+	// make packet times which can be sent 
+	public PacketTime sslSendPacket(int type, byte[] payload) {
+		// define payload here
+		Transport t;
+		try {
+            t = new Transport(sock.localPort, sock.destPort, type, sock.windowSize, sock.seqNum, payload);
+        } catch (Exception e) {
+            System.out.println("Error caught: " + e.getMessage());
+            return -1;
+        }
+		PacketTime pt = new PacketTime(t, tcpMan.getMan().now());
+		return pt;
+	}
 
     public void sendCert() {
 
