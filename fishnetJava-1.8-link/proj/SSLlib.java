@@ -40,12 +40,12 @@ public class SSLlib{
         < 0 if handshake unsuccessful bc fatal error. Again call SSL_get_error()
     */
 
-    public static int SSL_accept(){
+    public static int ssl_accept(){
         return 0;
     }
 
     /*Return: same as ssl_accept*/
-    public static int SSL_connect(){
+    public static int ssl_connect(){
         return 0;
     }
 
@@ -53,7 +53,7 @@ public class SSLlib{
             Return:  >0 if successful, w/number of bytes read
            0 if unsuccessful, but clean (maybe have been shutdown)
            <0 if unsuccessful, but needs action, some sort of error*/
-    public static int SSL_read(byte[] buf, int pos, int len){
+    public static int ssl_read(byte[] buf, int pos, int len){
         int bytesRead = 0;
 
         return bytesRead;
@@ -61,7 +61,7 @@ public class SSLlib{
 
     /*Signature: int ssl_write (SSL *ssl, const void *buf, int num)
         Return: same as ssl_read*/
-    public static int SSL_write(){
+    public static int ssl_write(){
         return 0;   
     }
 
@@ -69,7 +69,7 @@ public class SSLlib{
             Return: 0 shutdown not yet finished, call shutdown again if want a bidirectional shutdown
             1 shutdown successfully completed
             -1 shutdown unsuccessful bc of fatal error/other bad things*/
-    public static int SSL_shutdown(){
+    public static int ssl_shutdown(){
         return 0;
     }
 
