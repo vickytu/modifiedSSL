@@ -321,7 +321,7 @@ public class TCPManager {
         }
 
         else if (type == Transport.C_KEYX){
-            if (!receiver.isServer && receiver.sslLib.isHelo()) {
+            if (receiver.isServer && receiver.sslLib.isHelo()) {
                 receiver.sslLib.parseKey(pay);
                 receiver.sslLib.setC_Keyx();
             }

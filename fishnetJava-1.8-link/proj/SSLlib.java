@@ -252,6 +252,55 @@ public class SSLlib{
     public int ssl_shutdown(){
         return 0;
     }
+	
+	// only called if is client
+	public int sendKey() {
+		// generate pre-master secret with rand_s
+		int pms = gen.nextInt();
+		// encrypt pms with public key (RSA)
+		Cipher c = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+		c.init(Cipher.ENCRYPT_MODE, pubKey);
+		byte[] pmsEncrypted = c.doFinal(pms.getBytes("UTF-8"));
+		sslSendPacket(Transport.C_KEYX, pmsEncrypted);
+		
+		// after this, generate symmetric key w/PMS & rand_s and rand_c (RC4)
+		// what input is needed?
+		symKey = genSymKey();
+		// return success or failure
+		return 1;
+	}
+	
+	public int parseKey(byte[] pay) {
+		// decrypt pms with private key (RSA)
+		Cipher c = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+		c.init(Cipher.DECRYPT_MODE, privKey);
+		byte[] pms = c.doFinal(pay);)
+		// after this, generate symmetric key w/PMS & rand_s and rand_c
+		symKey = genSymKey();
+		// return success or failure
+		return 1;
+	}
+	
+	public int getSymKey() {
+		// KeyGenerator keyGen = 
+		// generate symkey with pms, rand_s, rand_c
+		// sooooomehow...
+		// return something (should be the symKey, dunno what it should be yet)
+	}
+	
+	// make packet times which can be sent 
+	public PacketTime sslSendPacket(int type, byte[] payload) {
+		// define payload here
+		Transport t;
+		try {
+            t = new Transport(sock.localPort, sock.destPort, type, sock.windowSize, sock.seqNum, payload);
+        } catch (Exception e) {
+            System.out.println("Error caught: " + e.getMessage());
+            return -1;
+        }
+		PacketTime pt = new PacketTime(t, tcpMan.getMan().now());
+		return pt;
+	}
 
     public void sendCert() {
 
