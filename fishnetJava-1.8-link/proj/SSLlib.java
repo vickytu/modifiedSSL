@@ -152,6 +152,7 @@ public class SSLlib{
         if(sock.state == TCPSock.ESTABLISHED) {
             sock.state = TCPSock.HANDSHAKE;
             //send HELO
+            sendHelo();
             return 2;
 
         } 
@@ -350,12 +351,10 @@ public class SSLlib{
         String[] payloadParse = payloadString.split(",", 5);
         String message = payloadParse[0] + payloadParse[1] + payloadParse[2] + payloadParse[3];
         String signature = payloadParse[4];
-
         if(!payloadParse[0].equals(domain)) {
             System.out.println("Error: SSL domain does not match");
             return false;
         }
-
         //get public key from CAkey_public.der
         // (adapted from http://stackoverflow.com/questions/11410770/load-rsa-public-key-from-file)
         File f = new File("CAkey_public.der");
@@ -381,5 +380,20 @@ public class SSLlib{
             System.out.print(ex);
         }
     }
+
+    public void sendFinished() {
+        //send the digest
+        helo = String.format("%s, %s, %d, %d", ver, cipher, sessID, rand_s);
+        byte[] buffer = helo.getBytes(StandardCharsets.UTF_8);
+        MessageDigest md = MessageDigest.getInstance("SHA-256");
+        md.update(buffer);
+        byte [] digest = md.digest();
+        sslSendPacket(Transport.FINISHED, digest);
+    }
+
+    public int parseFinished(byte[] payload) {
+        //receive the digest
+    }
+
 
 }
