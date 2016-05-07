@@ -274,7 +274,7 @@ public class SSLlib{
 		// decrypt pms with private key (RSA)
 		Cipher c = Cipher.getInstance("RSA/ECB/PKCS1Padding");
 		c.init(Cipher.DECRYPT_MODE, privKey);
-		byte[] pms = c.doFinal(pay);)
+		byte[] pms = c.doFinal(pay);
 		// after this, generate symmetric key w/PMS & rand_s and rand_c
 		symKey = genSymKey();
 		// return success or failure
@@ -286,6 +286,7 @@ public class SSLlib{
 		// generate symkey with pms, rand_s, rand_c
 		// sooooomehow...
 		// return something (should be the symKey, dunno what it should be yet)
+        return 1;
 	}
 	
 	// make packet times which can be sent 
@@ -330,7 +331,8 @@ public class SSLlib{
                 Signature sign = Signature.getInstance("SHA2withRSA");
                 sign.initSign(caPrivateKey);
                 sign.update(cert.getBytes("UTF-8"));
-                signature = String(Base64.encodeBase64(sign.sign()),"UTF-8");
+                //CHECK THIS vvvv
+                signature = String(sign.sign(), "UTF-8");
             } catch (Exception ex) {
                 System.out.print(ex);
             }
@@ -374,7 +376,7 @@ public class SSLlib{
             Signature sign = Signature.getInstance("SHA1withRSA");
             sign.initVerify(caPublicKey);
             sign.update(message.getBytes("UTF-8"));
-            return sign.verify(Base64.decodeBase64(signature.getBytes("UTF-8")));
+            return sign.verify(signature.getBytes("UTF-8"));
         } catch (Exception ex) {
             System.out.print(ex);
         }
