@@ -27,8 +27,7 @@ public class SSLlib{
     private Random gen = null;
     private PublicKey pubKey = null;
     private PrivateKey privKey = null;
-
-    private String symKey;          //not sure what type this should be?
+    private SecretKey symKey = null;     
 
     public String ver = null;
     public String cipher = null;
@@ -259,17 +258,14 @@ public class SSLlib{
 	
 	// only called if is client
 	public int sendKey() {
-		// generate pre-master secret with rand_s
-		int pms = gen.nextInt();
-		// encrypt pms with public key (RSA)
+		// create symmetric key
+		
+		// encrypt symmetric key with public key (RSA)
 		Cipher c = Cipher.getInstance("RSA/ECB/PKCS1Padding");
 		c.init(Cipher.ENCRYPT_MODE, pubKey);
-		byte[] pmsEncrypted = c.doFinal(pms.getBytes("UTF-8"));
-		sslSendPacket(Transport.C_KEYX, pmsEncrypted);
+		//byte[] pmsEncrypted = c.doFinal(pms.getBytes("UTF-8"));
+		sslSendPacket(Transport.C_KEYX, symEncrypted);
 		
-		// after this, generate symmetric key w/PMS & rand_s and rand_c (RC4)
-		// what input is needed?
-		symKey = getSymKey();
 		// return success or failure
 		return 1;
 	}
@@ -285,26 +281,31 @@ public class SSLlib{
 		return 1;
 	}
 	
-	public String getSymKey() {
-		// KeyGenerator keyGen = 
-		// generate symkey with pms, rand_s, rand_c
-		// sooooomehow...
-		// return something (should be the symKey, dunno what it should be yet)
-        return null;
-	}
-	
-	// make packet times which can be sent 
-	public PacketTime sslSendPacket(int type, byte[] payload) {
-		// define payload here
-		Transport t;
-		try {
-            t = new Transport(sock.localPort, sock.destPort, type, sock.windowSize, sock.seqNum, payload);
-        } catch (Exception e) {
-            System.out.println("Error caught: " + e.getMessage());
-            return -1;
-        }
-		PacketTime pt = new PacketTime(t, tcpMan.getMan().now());
-		return pt;
+	// make packet times which are then sent 
+	public int sslSendPacket(int type, byte[] payload) {
+		
+		int count = 0; // index of first byte to be written
+		int len = payload.length;
+		
+		while (count < len) {
+			
+			int toWrite = Math.min((len - count), Transport.MAX_PAYLOAD_SIZE);
+			byte[] bufWrite = Arrays.copyOfRange(buf, pos + count, pos + count + toWrite);
+			Transport t;
+			try {
+				t = new Transport(sock.localPort, sock.destPort, type, sock.windowSize, sock.seqNum, bufWrite);
+				
+			} catch (Exception e) {
+				System.out.println("Error caught: " + e.getMessage());
+				return -1; // error
+			}
+			
+			if (t != null) {
+				PacketTime pt = new PacketTime(t, tcpMan.getMan().now());
+				count += toWrite;
+			}
+		}
+		return 1; // success
 	}
 
     public void sendCert() {
