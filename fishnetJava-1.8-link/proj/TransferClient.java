@@ -47,8 +47,7 @@ public class TransferClient extends FishThread {
         this(manager, node, sock, amount,
              DEFAULT_CLIENT_INTERVAL,
              DEFAULT_BUFFER_SZ);
-        sock.isServer = false;
-        sock.sslLib.ssl_init();
+        sock.sslLib.ssl_client_init();
     }
 
     public void execute() {

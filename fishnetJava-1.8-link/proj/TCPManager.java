@@ -299,8 +299,9 @@ public class TCPManager {
                     receiver.sslLib.die = true;
                     return;
                 }
-                receiver.sslLib.setS_Done();
-
+                if(receiver.sslLib.isCertDone) {
+                    receiver.sslLib.setS_Done();
+                }
             }
             else {
                 System.out.println("WhaaaT?? Redundant cert ?!");
