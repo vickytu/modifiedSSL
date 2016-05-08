@@ -18,6 +18,7 @@ import java.security.*;
 import java.security.spec.*;
 import java.nio.charset.StandardCharsets;
 import javax.crypto.Cipher;
+import javax.crypto.SecretKey;
 
 public class SSLlib{
 
@@ -451,12 +452,19 @@ public class SSLlib{
     }
 
     public void sendS_done() {
-        //TODO
+        byte[] empty = new byte[0];
+        sslSendPacket(Transport.S_DONE, empty);
     }
 
     public void sendFinished() {
-        //send the digest
-        String finished = String.format("%s, %s, %d, %d", ver, cipher, sessID, rand_s);
+        //send the digest of messages sender has sent
+        String finished = "";
+        String encodedKey = Base64.getEncoder().encodeToString(symKey.getEncoded()); //symKey is type SecretKey
+        if (sock.isServer == true){
+            finished = String.format("%s, %s, %d, %d", ver, cipher, sessID, rand_s);
+        }else{
+            finished = String.format("%s, %s, %d, %d", ver, cipher, sessID, rand_c, encodedKey);
+        }
         byte[] buffer = finished.getBytes(StandardCharsets.UTF_8);
         MessageDigest md = MessageDigest.getInstance("SHA-256");
         md.update(buffer);
@@ -464,8 +472,24 @@ public class SSLlib{
         sslSendPacket(Transport.FINISHED, digest);
     }
 
+    //return 0 on success, -1 if fail
     public int parseFinished(byte[] payload) {
         //receive the digest
+        String finished = "";
+        String encodedKey = Base64.getEncoder().encodeToString(symKey.getEncoded());
+        if (sock.isServer == true){
+            finished = String.format("%s, %s, %d, %d", ver, cipher, sessID, rand_s);
+        }else{
+            finished = String.format("%s, %s, %d, %d", ver, cipher, sessID, rand_c, encodedKey);
+        }
+        byte[] buffer = finished.getBytes(StandardCharsets.UTF_8);
+        MessageDigest md = MessageDigest.getInstance("SHA-256");
+        md.update(buffer);
+        byte [] digest = md.digest();
+        if (Arrays.equals(digest, payload)){
+            return 0;
+        }
+        return -1;
     }
 
 
