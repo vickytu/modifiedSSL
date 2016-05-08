@@ -59,6 +59,7 @@ public class TransferServer extends FishThread {
     }
 
     public void execute() {
+        System.out.printf("%s", "got executed");
         if (!serverSock.isClosed()) {
             // try to accept an established connection
             TCPSock connSock = serverSock.accept();
@@ -67,8 +68,10 @@ public class TransferServer extends FishThread {
             int ret;
             if((ret = connSock.sslLib.ssl_accept()) > 1) {
                 node.logOutput("shaking hands ...");
+                System.out.printf("ret: %d", ret);
                 return; 
             }
+            
             node.logError("shouldn't reach here either");
             if(ret < 0) {
                 node.logOutput("Fatal SSL error");
