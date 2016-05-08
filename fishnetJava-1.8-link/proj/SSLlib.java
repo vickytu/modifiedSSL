@@ -17,8 +17,7 @@ import java.io.*;
 import java.security.*;
 import java.security.spec.*;
 import java.nio.charset.StandardCharsets;
-import javax.crypto.Cipher;
-import javax.crypto.SecretKey;
+import javax.crypto.*;
 
 public class SSLlib{
 
@@ -372,7 +371,7 @@ public class SSLlib{
 			// encrypt symmetric key with public key (RSA)
 			Cipher c = Cipher.getInstance("RSA/ECB/PKCS1Padding");
 			c.init(Cipher.ENCRYPT_MODE, pubKey);
-			byte[] symEncrypted = c.doFinal(sym.getEncoded());
+			byte[] symEncrypted = c.doFinal(symKey.getEncoded());
 			sslSendPacket(Transport.C_KEYX, symEncrypted);
 			
 		} catch (Exception e) {
