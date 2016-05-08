@@ -29,20 +29,26 @@ public class SSLlib{
     private PublicKey pubKey = null;
     private PrivateKey privKey = null;
 
-    private SecretKey symKey;          //not sure what type this should be?
+    private SecretKey symKey = null;     
+
+    private PublicKey caPublicKey = null;
+    private PrivateKey caPrivateKey = null;
 
     public String ver = null;
     public String cipher = null;
     public int sessID;
 
-    public String domain = "isitbagelbrunch.com";
-    public String organization = "VFD";
-    public String country = "Genovia";
+    private String domain = "isitbagelbrunch.com";
+    private String organization = "VFD";
+    private String country = "Genovia";
 
-    public int rand_c;
-    public int rand_s;
+    private int rand_c;
+    private int rand_s;
 
     public boolean die = false;
+
+    public boolean isCertDone;
+    private String certSoFar = "";
 
     enum SSLState {
         // protocol states, all of these are after the action has been done, so HELO = HELO_SENT
@@ -101,11 +107,69 @@ public class SSLlib{
     */
 
     // initialize version and cipher for clients only
-    public void ssl_init() {
+    public void ssl_client_init() {
         //gen (rand)
         ver = "1";
         cipher = "supersecretcipher";
-        //read CA public key out of file CAkey_public.txt?
+        sock.isServer = false;
+
+        // Get trusted Certifying Authority's public key
+        // get public key from CAkey_public.der
+        // (adapted from http://stackoverflow.com/questions/11410770/load-rsa-public-key-from-file)
+
+        File f = new File("CAkey_public.der");
+        FileInputStream fis = new FileInputStream(f);
+        DataInputStream dis = new DataInputStream(fis);
+        byte[] keyBytes = new byte[(int)f.length()];
+        dis.readFully(keyBytes);
+        dis.close();
+        fis.close();
+
+        X509EncodedKeySpec spec =
+          new X509EncodedKeySpec(keyBytes);
+        KeyFactory kf = KeyFactory.getInstance("RSA");
+        caPublicKey = kf.generatePublic(spec);
+
+
+    }
+
+    public void ssl_server_init() {
+
+        sock.isServer = true;
+
+        //generate public and private keys
+        // adapted from "https://examples.javacodegeeks.com/core-java/security/get-bytes-of-a-key-pair-example/"
+
+        try {
+            String algorithm = "RSA";
+
+            KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance(algorithm);
+            keyPairGenerator.initialize(1024);
+            KeyPair keyPair = keyPairGenerator.genKeyPair();
+            PrivateKey privKey = keyPair.getPrivate();
+            PublicKey pubKey = keyPair.getPublic();
+        } catch (Exception ex) {
+            System.out.print(ex);
+        }
+
+        //Get Certifying Authority private key 
+        //(server will simulate external certifying authority by signing own certificate as "CA")
+        // (adapted from http://stackoverflow.com/questions/11410770/load-rsa-public-key-from-file)
+        //get private key from CAkey_private.der
+
+        File f = new File("CAkey_private.der");
+        FileInputStream fis = new FileInputStream(f);
+        DataInputStream dis = new DataInputStream(fis);
+        byte[] keyBytes = new byte[(int)f.length()];
+        dis.readFully(keyBytes);
+        dis.close();
+        fis.close();
+
+        PKCS8EncodedKeySpec spec =
+          new PKCS8EncodedKeySpec(keyBytes);
+        KeyFactory kf = KeyFactory.getInstance("RSA");
+        caPrivateKey = kf.generatePrivate(spec);
+
     }
 
     public int ssl_accept(){
@@ -260,17 +324,14 @@ public class SSLlib{
 	
 	// only called if is client
 	public int sendKey() {
-		// generate pre-master secret with rand_s
-		int pms = gen.nextInt();
-		// encrypt pms with public key (RSA)
+		// create symmetric key
+		
+		// encrypt symmetric key with public key (RSA)
 		Cipher c = Cipher.getInstance("RSA/ECB/PKCS1Padding");
 		c.init(Cipher.ENCRYPT_MODE, pubKey);
-		byte[] pmsEncrypted = c.doFinal(pms.getBytes("UTF-8"));
-		sslSendPacket(Transport.C_KEYX, pmsEncrypted);
+		//byte[] pmsEncrypted = c.doFinal(pms.getBytes("UTF-8"));
+		sslSendPacket(Transport.C_KEYX, symEncrypted);
 		
-		// after this, generate symmetric key w/PMS & rand_s and rand_c (RC4)
-		// what input is needed?
-		symKey = getSymKey();
 		// return success or failure
 		return 1;
 	}
@@ -286,93 +347,84 @@ public class SSLlib{
 		return 1;
 	}
 	
-	public String getSymKey() {
-		// KeyGenerator keyGen = 
-		// generate symkey with pms, rand_s, rand_c
-		// sooooomehow...
-		// return something (should be the symKey, dunno what it should be yet)
-        return null;
-	}
-	
-	// make packet times which can be sent 
-	public PacketTime sslSendPacket(int type, byte[] payload) {
-		// define payload here
-		Transport t;
-		try {
-            t = new Transport(sock.localPort, sock.destPort, type, sock.windowSize, sock.seqNum, payload);
-        } catch (Exception e) {
-            System.out.println("Error caught: " + e.getMessage());
-            return -1;
-        }
-		PacketTime pt = new PacketTime(t, tcpMan.getMan().now());
-		return pt;
+	// make packet times which are then sent 
+	public int sslSendPacket(int type, byte[] payload) {
+		
+		int count = 0; // index of first byte to be written
+		int len = payload.length;
+		
+		while (count < len) {
+			
+			int toWrite = Math.min((len - count), Transport.MAX_PAYLOAD_SIZE);
+			byte[] bufWrite = Arrays.copyOfRange(buf, pos + count, pos + count + toWrite);
+			Transport t;
+			try {
+				t = new Transport(sock.localPort, sock.destPort, type, sock.windowSize, sock.seqNum, bufWrite);
+				
+			} catch (Exception e) {
+				System.out.println("Error caught: " + e.getMessage());
+				return -1; // error
+			}
+			
+			if (t != null) {
+				PacketTime pt = new PacketTime(t, tcpMan.getMan().now());
+				count += toWrite;
+			}
+		}
+		return 1; // success
 	}
 
     public void sendCert() {
 
         //write the certificate signing request
         String cert = "";
-        cert = String.format("%s, %s, %s, %s,", domain, organization, country, new String(pubKey.getEncoded(), "UTF-8"));
+        cert = String.format("-----BEGIN CERTIFICATE-----%s, %s, %s, %s,", domain, organization, country, 
+            new String(pubKey.getEncoded(), "UTF-8"));
 
         //simulate certifying authority: 
         // (adapted from http://stackoverflow.com/questions/11410770/load-rsa-public-key-from-file)
-            //get private key from CAkey_private.der
-            File f = new File("CAkey_private.der");
-            FileInputStream fis = new FileInputStream(f);
-            DataInputStream dis = new DataInputStream(fis);
-            byte[] keyBytes = new byte[(int)f.length()];
-            dis.readFully(keyBytes);
-            dis.close();
-            fis.close();
-
-            PKCS8EncodedKeySpec spec =
-              new PKCS8EncodedKeySpec(keyBytes);
-            KeyFactory kf = KeyFactory.getInstance("RSA");
-            PrivateKey caPrivateKey = kf.generatePrivate(spec);
-
             //sign cert with SHA2 hash and key
             String signature = "";
             try {
                 Signature sign = Signature.getInstance("SHA2withRSA");
                 sign.initSign(caPrivateKey);
                 sign.update(cert.getBytes("UTF-8"));
-                //CHECK THIS vvvv
                 signature = new String(sign.sign(), "UTF-8");
             } catch (Exception ex) {
                 System.out.print(ex);
             }
 
         //pack message, signature into byte array payload
-        String payloadString = cert + signature;
+        String payloadString = cert + signature + "-----END CERTIFICATE-----";
         byte[] payload = payloadString.getBytes();
         sslSendPacket(Transport.CERT, payload);
 
     }
 
     public boolean parseCert(byte[] payload) {
-        //unpack payload, split into message and signature
+        
+        //add payload to certSoFar
         String payloadString = new String(payload);
-        String[] payloadParse = payloadString.split(",", 5);
-        String message = payloadParse[0] + payloadParse[1] + payloadParse[2] + payloadParse[3];
-        String signature = payloadParse[4];
-        if(!payloadParse[0].equals(domain)) {
+        if(payloadString.startsWith("-----BEGIN CERTIFICATE-----")) {
+            isCertDone = false;
+            payloadString = payloadString.replace("-----BEGIN CERTIFICATE-----", "");
+        } if(payloadString.endsWith("-----END CERTIFICATE-----")) {
+            isCertDone = true;
+            payloadString = payloadString.replace("-----END CERTIFICATE-----", "");
+        }
+        certSoFar = certSoFar + payloadString;
+        if(!isCertDone) {
+            return true;
+        }
+
+        //parse string into message and signature
+        String[] certParse = certSoFar.split(",", 5);
+        String message = certParse[0] + certParse[1] + certParse[2] + certParse[3];
+        String signature = certParse[4];
+        if(!certParse[0].equals(domain)) {
             System.out.println("Error: SSL domain does not match");
             return false;
         }
-        //get public key from CAkey_public.der
-        // (adapted from http://stackoverflow.com/questions/11410770/load-rsa-public-key-from-file)
-        File f = new File("CAkey_public.der");
-        FileInputStream fis = new FileInputStream(f);
-        DataInputStream dis = new DataInputStream(fis);
-        byte[] keyBytes = new byte[(int)f.length()];
-        dis.readFully(keyBytes);
-        dis.close();
-        fis.close();
-
-        X509EncodedKeySpec spec =
-          new X509EncodedKeySpec(keyBytes);
-        KeyFactory kf = KeyFactory.getInstance("RSA");
-        PublicKey caPublicKey = kf.generatePublic(spec);
 
         //verify signed message
         try {
@@ -386,7 +438,14 @@ public class SSLlib{
             System.out.print(ex);
         }
 
-        byte[] pubKeyBytes = payloadParse[3].getBytes("UTF-8");
+        //save server's public key from the cert
+        byte[] pubKeyBytes = certParse[3].getBytes("UTF-8");
+        X509EncodedKeySpec spec =
+          new X509EncodedKeySpec(pubKeyBytes);
+        KeyFactory kf = KeyFactory.getInstance("RSA");
+        PublicKey pubKey = kf.generatePublic(spec);
+
+        return true;
 
 
     }
