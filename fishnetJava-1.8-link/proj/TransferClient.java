@@ -65,6 +65,7 @@ public class TransferClient extends FishThread {
                 node.logOutput("shaking hands ...");
                 return;
             } 
+            node.logError("shouldn't reach here either");
             if(ret < 0) {
                 node.logOutput("Fatal SSL error");
                 sock.release();

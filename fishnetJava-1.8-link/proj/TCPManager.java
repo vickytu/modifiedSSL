@@ -279,7 +279,8 @@ public class TCPManager {
         else if (type == Transport.HELO){
             if (receiver.isServer &&  receiver.sslLib.isNew()) {
                 receiver.sslLib.parseHelo(pay);
-                receiver.sslLib.setHelo();
+                receiver.sslLib.setHandshake();
+                //receiver.sslLib.setHelo();
 
             }
             else if (!receiver.isServer && receiver.sslLib.isHelo()) {
@@ -294,6 +295,7 @@ public class TCPManager {
         }
 
         else if (type == Transport.CERT){
+            System.out.println("CERT received");
             if (!receiver.isServer &&  receiver.sslLib.isCert()) {
                 if(!receiver.sslLib.parseCert(pay)) {
                     receiver.sslLib.die = true;

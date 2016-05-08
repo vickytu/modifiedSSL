@@ -17,8 +17,9 @@ import java.io.*;
 import java.security.*;
 import java.security.spec.*;
 import java.nio.charset.StandardCharsets;
-import javax.crypto.Cipher;
-import javax.crypto.SecretKey;
+import javax.crypto.*;
+import javax.crypto.spec.*;
+
 
 public class SSLlib{
 
@@ -71,16 +72,20 @@ public class SSLlib{
     }
 
     public void sendHelo(){
+
         String helo = "";
         if (sock.isServer == true){
+            System.out.printf("%s", "From Server: ");
             rand_s = gen.nextInt(); //may have problems if sendHelo is called multiple times
-            helo = String.format("%s, %s, %d, %d", ver, cipher, sessID, rand_s);
+            helo = String.format("%s,%s,%d,%d", ver, cipher, sessID, rand_s);
         }else{
+            System.out.printf("%s", "From Client: ");
             rand_c = gen.nextInt();
-            helo = String.format("%s, %s, %d, %d", ver, cipher, sessID, rand_c);
+            helo = String.format("%s,%s,%d,%d", ver, cipher, sessID, rand_c);
         }
         byte[] payload = helo.getBytes(StandardCharsets.UTF_8); 
         sslSendPacket(Transport.HELO, payload);
+        System.out.println("HELO sent");
     }
 
     public void parseHelo(byte[] pay){
@@ -92,10 +97,13 @@ public class SSLlib{
         sessID = Integer.parseInt(tokens[2]);
         int rand = Integer.parseInt(tokens[3]);
         if (sock.isServer == true){
+            System.out.printf("%s", "From Server: ");
             rand_c = rand;
         }else{
+            System.out.printf("%s", "From Client: ");
             rand_s = rand;
-        }        
+        }
+        System.out.println("HELO received and parsed");        
     }
 
     /*Return: 0 if 
@@ -183,17 +191,19 @@ public class SSLlib{
 
     public int ssl_accept(){
         // SERVER STATES ARE FOR THOSE MESSAGES IT HAS RECEIVED !!!!!!!!
-
+        System.out.println("ssl_accept has been called");
         if(die) {
             return -1;
         }
 
         if (sock.state == TCPSock.State.ESTABLISHED) {
+            System.out.println("Server state == ESTABLISHED");
             return 2;
         }
 
         else if (sslState == SSLState.NEW) {
             // send HELO, CERT, and S_DONE, then change state
+            System.out.println("Server sending HELO, CERT, and S_DONE");
             sendHelo();
             sendCert();
             sendS_done();
@@ -220,6 +230,7 @@ public class SSLlib{
         else {
             //error
         }
+    
         return 0;
     }
 
@@ -233,33 +244,40 @@ public class SSLlib{
 
         if(sock.state == TCPSock.State.ESTABLISHED) {
             sock.state = TCPSock.State.HANDSHAKE;
+            System.out.println("Client sock state == HANDSHAKE");
             //send HELO
             sendHelo();
             return 2;
 
         } 
         else if (sslState == SSLState.HELO) {
+            System.out.println("Client state == HELO");
             return 2;
         }
         else if (sslState == SSLState.CERT) {
             // tcpman called something to deal with helo
+            System.out.println("Client state == CERT");
             return 2;
         }
         else if (sslState == SSLState.S_DONE) {
             // tcpman called something to deal with cert
+            System.out.println("Client state == S_DONE");
             return 2;
 
         }
         else if (sslState == SSLState.FINISHED) {
             // tcpman called stuff to send C_KEYX and FINISHED
+            System.out.println("Client state == FINISHED");
             return 2;
         }
         else if (sslState == SSLState.DONE) {
+            System.out.println("Client state == DONE");
             return 1;
             
         }
         else {
             //error
+            System.out.println("connect error");
         }
 
 
@@ -288,11 +306,18 @@ public class SSLlib{
         return (sslState == SSLState.DONE);
     }
 
+    public void setHandshake() {
+        sock.state = TCPSock.State.HANDSHAKE;
+        System.out.println("sock state set to HANDSHAKE");
+    }
+
     public void setNew() {
         sslState = SSLState.NEW;
     }
     public void setHelo() {
+        sock.state = TCPSock.State.HANDSHAKE;
         sslState = SSLState.HELO;
+        System.out.println("state set to HELO");
     }
     public void setCert() {
         sslState = SSLState.CERT;
@@ -340,13 +365,17 @@ public class SSLlib{
 	public int sendKey() {
 
 		try {
-			// create symmetric key
+			// create symmetric key -- SIMPLIFIED FOR NOW
+			KeyGenerator keyGen = KeyGenerator.getInstance("AES");
+			keyGen.init(80);	// to be really secure, should be 112~~~!!! also work with padding once we have PMS and stuff
+			symKey = keyGen.generateKey();
 			
 			// encrypt symmetric key with public key (RSA)
 			Cipher c = Cipher.getInstance("RSA/ECB/PKCS1Padding");
 			c.init(Cipher.ENCRYPT_MODE, pubKey);
-			//byte[] pmsEncrypted = c.doFinal(pms.getBytes("UTF-8"));
-			//sslSendPacket(Transport.C_KEYX, symEncrypted);
+			byte[] symEncrypted = c.doFinal(symKey.getEncoded());
+			sslSendPacket(Transport.C_KEYX, symEncrypted);
+			
 		} catch (Exception e) {
 			System.out.println("Error caught in sendKey: ");
             e.printStackTrace();
@@ -361,7 +390,11 @@ public class SSLlib{
 			// decrypt pms with private key (RSA)
 			Cipher c = Cipher.getInstance("RSA/ECB/PKCS1Padding");
 			c.init(Cipher.DECRYPT_MODE, privKey);
-			byte[] pms = c.doFinal(pay);
+			byte[] symKeyBytes = c.doFinal(pay);
+			
+			// turn byte[] into SecretKey
+			symKey = new SecretKeySpec(symKeyBytes, "AES");
+			
 			// after this, generate symmetric key w/PMS & rand_s and rand_c
 			// return success or failure
 		} catch (Exception e) {
@@ -429,7 +462,7 @@ public class SSLlib{
         String payloadString = cert + signature + "-----END CERTIFICATE-----";
         byte[] payload = payloadString.getBytes();
         sslSendPacket(Transport.CERT, payload);
-
+        System.out.println("CERT sent");
     }
 
     public boolean parseCert(byte[] payload) {
@@ -480,7 +513,7 @@ public class SSLlib{
         } catch (Exception ex) {
             ex.printStackTrace();
         }
-        
+        System.out.println("CERT parsed and received");
 
         return true;
 
@@ -497,9 +530,9 @@ public class SSLlib{
         String finished = "";
         String encodedKey = Base64.getEncoder().encodeToString(symKey.getEncoded()); //symKey is type SecretKey
         if (sock.isServer == true){
-            finished = String.format("%s, %s, %d, %d", ver, cipher, sessID, rand_s);
+            finished = String.format("%s,%s,%d,%d", ver, cipher, sessID, rand_s);
         }else{
-            finished = String.format("%s, %s, %d, %d", ver, cipher, sessID, rand_c, encodedKey);
+            finished = String.format("%s,%s,%d,%d,%s", ver, cipher, sessID, rand_c, encodedKey);
         }
         byte[] buffer = finished.getBytes(StandardCharsets.UTF_8);
         try{
@@ -519,9 +552,9 @@ public class SSLlib{
         String finished = "";
         String encodedKey = Base64.getEncoder().encodeToString(symKey.getEncoded());
         if (sock.isServer == true){
-            finished = String.format("%s, %s, %d, %d", ver, cipher, sessID, rand_s);
+            finished = String.format("%s,%s,%d,%d", ver, cipher, sessID, rand_s);
         }else{
-            finished = String.format("%s, %s, %d, %d", ver, cipher, sessID, rand_c, encodedKey);
+            finished = String.format("%s,%s,%d,%d,%s", ver, cipher, sessID, rand_c, encodedKey);
         }
         byte[] buffer = finished.getBytes(StandardCharsets.UTF_8);
         try{
