@@ -333,26 +333,35 @@ public class SSLlib{
 	
 	// only called if is client
 	public int sendKey() {
-		// create symmetric key
-		
-		// encrypt symmetric key with public key (RSA)
-		Cipher c = Cipher.getInstance("RSA/ECB/PKCS1Padding");
-		c.init(Cipher.ENCRYPT_MODE, pubKey);
-		//byte[] pmsEncrypted = c.doFinal(pms.getBytes("UTF-8"));
-		//sslSendPacket(Transport.C_KEYX, symEncrypted);
-		
+
+		try {
+			// create symmetric key
+			
+			// encrypt symmetric key with public key (RSA)
+			Cipher c = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+			c.init(Cipher.ENCRYPT_MODE, pubKey);
+			//byte[] pmsEncrypted = c.doFinal(pms.getBytes("UTF-8"));
+			//sslSendPacket(Transport.C_KEYX, symEncrypted);
+		} catch (Exception e) {
+			System.out.println("Error caught in sendKey: " + e.getMessage());
+		}	
 		// return success or failure
 		return 1;
 	}
 	
 	public int parseKey(byte[] pay) {
-		// decrypt pms with private key (RSA)
-		Cipher c = Cipher.getInstance("RSA/ECB/PKCS1Padding");
-		c.init(Cipher.DECRYPT_MODE, privKey);
-		byte[] pms = c.doFinal(pay);
-		// after this, generate symmetric key w/PMS & rand_s and rand_c
-		//symKey = getSymKey();
-		// return success or failure
+
+		try {
+			// decrypt pms with private key (RSA)
+			Cipher c = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+			c.init(Cipher.DECRYPT_MODE, privKey);
+			byte[] pms = c.doFinal(pay);
+			// after this, generate symmetric key w/PMS & rand_s and rand_c
+			// return success or failure
+		} catch (Exception e) {
+			System.out.println("Error caught in parseKey: " + e.getMessage());
+		}
+
 		return 1;
 	}
 	
@@ -485,10 +494,14 @@ public class SSLlib{
             finished = String.format("%s, %s, %d, %d", ver, cipher, sessID, rand_c, encodedKey);
         }
         byte[] buffer = finished.getBytes(StandardCharsets.UTF_8);
-        MessageDigest md = MessageDigest.getInstance("SHA-256");
-        md.update(buffer);
-        byte [] digest = md.digest();
-        sslSendPacket(Transport.FINISHED, digest);
+        try{
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            md.update(buffer);
+            byte [] digest = md.digest();
+            sslSendPacket(Transport.FINISHED, digest);
+        }catch (NoSuchAlgorithmException e){
+            System.err.println("NoSuchAlgorithmException: " + e.getMessage());
+        }
     }
 
     //return 0 on success, -1 if fail
@@ -502,13 +515,17 @@ public class SSLlib{
             finished = String.format("%s, %s, %d, %d", ver, cipher, sessID, rand_c, encodedKey);
         }
         byte[] buffer = finished.getBytes(StandardCharsets.UTF_8);
-        MessageDigest md = MessageDigest.getInstance("SHA-256");
-        md.update(buffer);
-        byte [] digest = md.digest();
-        if (Arrays.equals(digest, payload)){
-            return 0;
+        try{
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            md.update(buffer);
+            byte [] digest = md.digest();
+            if (Arrays.equals(digest, payload)){
+                return 0;
+            }
+            return -1;
+        }catch (NoSuchAlgorithmException e){
+            System.err.println("NoSuchAlgorithmException: " + e.getMessage());
         }
-        return -1;
     }
 
 
