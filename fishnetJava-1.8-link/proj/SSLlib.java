@@ -429,6 +429,7 @@ public class SSLlib{
             sign.initVerify(caPublicKey);
             sign.update(message.getBytes("UTF-8"));
             if(!sign.verify(signature.getBytes("UTF-8"))) {
+                System.out.println("Error: Could not verify SSL certificate");
                 return false;
             }
         } catch (Exception ex) {
