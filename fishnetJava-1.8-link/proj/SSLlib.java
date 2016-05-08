@@ -356,7 +356,7 @@ public class SSLlib{
 		while (count < len) {
 			
 			int toWrite = Math.min((len - count), Transport.MAX_PAYLOAD_SIZE);
-			byte[] bufWrite = Arrays.copyOfRange(buf, pos + count, pos + count + toWrite);
+			byte[] bufWrite = Arrays.copyOfRange(payload, count, count + toWrite);
 			Transport t;
 			try {
 				t = new Transport(sock.localPort, sock.destPort, type, sock.windowSize, sock.seqNum, bufWrite);
