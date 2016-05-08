@@ -465,10 +465,14 @@ public class SSLlib{
             finished = String.format("%s, %s, %d, %d", ver, cipher, sessID, rand_c, encodedKey);
         }
         byte[] buffer = finished.getBytes(StandardCharsets.UTF_8);
-        MessageDigest md = MessageDigest.getInstance("SHA-256");
-        md.update(buffer);
-        byte [] digest = md.digest();
-        sslSendPacket(Transport.FINISHED, digest);
+        try{
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            md.update(buffer);
+            byte [] digest = md.digest();
+            sslSendPacket(Transport.FINISHED, digest);
+        }catch (NoSuchAlgorithmException e){
+            System.err.println("NoSuchAlgorithmException: " + e.getMessage());
+        }
     }
 
     //return 0 on success, -1 if fail
@@ -482,13 +486,17 @@ public class SSLlib{
             finished = String.format("%s, %s, %d, %d", ver, cipher, sessID, rand_c, encodedKey);
         }
         byte[] buffer = finished.getBytes(StandardCharsets.UTF_8);
-        MessageDigest md = MessageDigest.getInstance("SHA-256");
-        md.update(buffer);
-        byte [] digest = md.digest();
-        if (Arrays.equals(digest, payload)){
-            return 0;
+        try{
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            md.update(buffer);
+            byte [] digest = md.digest();
+            if (Arrays.equals(digest, payload)){
+                return 0;
+            }
+            return -1;
+        }catch (NoSuchAlgorithmException e){
+            System.err.println("NoSuchAlgorithmException: " + e.getMessage());
         }
-        return -1;
     }
 
 
