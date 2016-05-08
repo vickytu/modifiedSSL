@@ -41,6 +41,8 @@ public class TransferClient extends FishThread {
         this.pos = 0;
 
         this.setInterval(this.interval);
+
+        sock.sslLib.ssl_client_init();
     }
 
     public TransferClient(Manager manager, Node node, TCPSock sock, int amount) {
@@ -51,13 +53,23 @@ public class TransferClient extends FishThread {
     }
 
     public void execute() {
+        
         if (sock.isConnectionPending()) {
             node.logOutput("connecting...");
             return;
         } else if (sock.isConnected()) {
 
-            while(sock.sslLib.ssl_connect() > 1) {
-                //sleep(10)
+            node.logOutput("starting connect");
+            int ret;
+            if((ret = sock.sslLib.ssl_connect()) > 1) {
+                node.logOutput("shaking hands ...");
+                return;
+            } 
+            if(ret < 0) {
+                node.logOutput("Fatal SSL error");
+                sock.release();
+                this.stop();
+                return;
             }
 
             if (startTime == 0) {

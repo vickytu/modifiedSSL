@@ -65,12 +65,14 @@ public class TransferServer extends FishThread {
             if (connSock == null) return;
             connSock.sslLib.ssl_server_init();
             int ret;
-            while((ret = connSock.sslLib.ssl_accept()) > 1) {
-                //sleep(10)
+            if((ret = connSock.sslLib.ssl_accept()) > 1) {
+                node.logOutput("shaking hands ...");
+                return; 
             }
             if(ret < 0) {
                 node.logOutput("Fatal SSL error");
                 connSock.release();
+                this.stop();
                 return;
             }
 

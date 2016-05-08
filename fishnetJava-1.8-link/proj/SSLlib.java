@@ -131,7 +131,7 @@ public class SSLlib{
             KeyFactory kf = KeyFactory.getInstance("RSA");
             caPublicKey = kf.generatePublic(spec);
         } catch (Exception ex) {
-            System.out.print(ex);
+            ex.printStackTrace();
         }
         
 
@@ -154,7 +154,7 @@ public class SSLlib{
             PrivateKey privKey = keyPair.getPrivate();
             PublicKey pubKey = keyPair.getPublic();
         } catch (Exception ex) {
-            System.out.print(ex);
+            ex.printStackTrace();
         }
 
         //Get Certifying Authority private key 
@@ -175,7 +175,7 @@ public class SSLlib{
             KeyFactory kf = KeyFactory.getInstance("RSA");
             caPrivateKey = kf.generatePrivate(spec);
         } catch (Exception ex) {
-            System.out.print(ex);
+            ex.printStackTrace();
         }
         
 
@@ -226,6 +226,11 @@ public class SSLlib{
     /*Return: same as ssl_accept*/
     public int ssl_connect(){
         // CLIENT STATES ARE FOR THOSE MESSAGES IT IS EXPECTING !!!!!!!!
+
+        if(die) {
+            return -1;
+        }
+
         if(sock.state == TCPSock.State.ESTABLISHED) {
             sock.state = TCPSock.State.HANDSHAKE;
             //send HELO
@@ -343,7 +348,8 @@ public class SSLlib{
 			//byte[] pmsEncrypted = c.doFinal(pms.getBytes("UTF-8"));
 			//sslSendPacket(Transport.C_KEYX, symEncrypted);
 		} catch (Exception e) {
-			System.out.println("Error caught in sendKey: " + e.getMessage());
+			System.out.println("Error caught in sendKey: ");
+            e.printStackTrace();
 		}	
 		// return success or failure
 		return 1;
@@ -359,7 +365,8 @@ public class SSLlib{
 			// after this, generate symmetric key w/PMS & rand_s and rand_c
 			// return success or failure
 		} catch (Exception e) {
-			System.out.println("Error caught in parseKey: " + e.getMessage());
+			System.out.println("Error caught in parseKey: ");
+            e.printStackTrace();
 		}
 
 		return 1;
@@ -380,7 +387,8 @@ public class SSLlib{
 				t = new Transport(sock.localPort, sock.destPort, type, sock.windowSize, sock.seqNum, bufWrite);
 				
 			} catch (Exception e) {
-				System.out.println("Error caught: " + e.getMessage());
+				System.out.println("Error caught: ");
+                e.printStackTrace();
 				return -1; // error
 			}
 			
@@ -401,7 +409,7 @@ public class SSLlib{
             String pubKeyString = new String(pubKey.getEncoded(), "UTF-8");
             cert = String.format("-----BEGIN CERTIFICATE-----%s, %s, %s, %s,", domain, organization, country, pubKeyString);
         } catch (Exception ex) {
-            System.out.print(ex);
+            ex.printStackTrace();
         }
 
         //simulate certifying authority: 
@@ -414,7 +422,7 @@ public class SSLlib{
                 sign.update(cert.getBytes("UTF-8"));
                 signature = new String(sign.sign(), "UTF-8");
             } catch (Exception ex) {
-                System.out.print(ex);
+                ex.printStackTrace();
             }
 
         //pack message, signature into byte array payload
@@ -459,7 +467,7 @@ public class SSLlib{
                 return false;
             }
         } catch (Exception ex) {
-            System.out.print(ex);
+            ex.printStackTrace();
         }
 
         //save server's public key from the cert
@@ -470,7 +478,7 @@ public class SSLlib{
             KeyFactory kf = KeyFactory.getInstance("RSA");
             PublicKey pubKey = kf.generatePublic(spec);
         } catch (Exception ex) {
-            System.out.print(ex);
+            ex.printStackTrace();
         }
         
 
@@ -500,7 +508,8 @@ public class SSLlib{
             byte [] digest = md.digest();
             sslSendPacket(Transport.FINISHED, digest);
         }catch (NoSuchAlgorithmException e){
-            System.err.println("NoSuchAlgorithmException: " + e.getMessage());
+            System.err.println("NoSuchAlgorithmException: ");
+            e.printStackTrace();
         }
     }
 
@@ -524,7 +533,8 @@ public class SSLlib{
             }
             
         }catch (NoSuchAlgorithmException e){
-            System.err.println("NoSuchAlgorithmException: " + e.getMessage());
+            System.err.println("NoSuchAlgorithmException: ");
+            e.printStackTrace();
         }
         return -1;
     }
