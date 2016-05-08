@@ -324,26 +324,32 @@ public class SSLlib{
 	
 	// only called if is client
 	public int sendKey() {
-		// create symmetric key
-		
-		// encrypt symmetric key with public key (RSA)
-		Cipher c = Cipher.getInstance("RSA/ECB/PKCS1Padding");
-		c.init(Cipher.ENCRYPT_MODE, pubKey);
-		//byte[] pmsEncrypted = c.doFinal(pms.getBytes("UTF-8"));
-		sslSendPacket(Transport.C_KEYX, symEncrypted);
-		
+		try {
+			// create symmetric key
+			
+			// encrypt symmetric key with public key (RSA)
+			Cipher c = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+			c.init(Cipher.ENCRYPT_MODE, pubKey);
+			//byte[] pmsEncrypted = c.doFinal(pms.getBytes("UTF-8"));
+			//sslSendPacket(Transport.C_KEYX, symEncrypted);
+		} catch (Exception e) {
+			System.out.println("Error caught in sendKey: " + e.getMessage());
+		}	
 		// return success or failure
 		return 1;
 	}
 	
 	public int parseKey(byte[] pay) {
-		// decrypt pms with private key (RSA)
-		Cipher c = Cipher.getInstance("RSA/ECB/PKCS1Padding");
-		c.init(Cipher.DECRYPT_MODE, privKey);
-		byte[] pms = c.doFinal(pay);
-		// after this, generate symmetric key w/PMS & rand_s and rand_c
-		symKey = getSymKey();
-		// return success or failure
+		try {
+			// decrypt pms with private key (RSA)
+			Cipher c = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+			c.init(Cipher.DECRYPT_MODE, privKey);
+			byte[] pms = c.doFinal(pay);
+			// after this, generate symmetric key w/PMS & rand_s and rand_c
+			// return success or failure
+		} catch (Exception e) {
+			System.out.println("Error caught in parseKey: " + e.getMessage());
+		}
 		return 1;
 	}
 	
