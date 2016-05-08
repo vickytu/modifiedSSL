@@ -117,18 +117,23 @@ public class SSLlib{
         // get public key from CAkey_public.der
         // (adapted from http://stackoverflow.com/questions/11410770/load-rsa-public-key-from-file)
 
-        File f = new File("CAkey_public.der");
-        FileInputStream fis = new FileInputStream(f);
-        DataInputStream dis = new DataInputStream(fis);
-        byte[] keyBytes = new byte[(int)f.length()];
-        dis.readFully(keyBytes);
-        dis.close();
-        fis.close();
+        try {
+            File f = new File("CAkey_public.der");
+            FileInputStream fis = new FileInputStream(f);
+            DataInputStream dis = new DataInputStream(fis);
+            byte[] keyBytes = new byte[(int)f.length()];
+            dis.readFully(keyBytes);
+            dis.close();
+            fis.close();
 
-        X509EncodedKeySpec spec =
-          new X509EncodedKeySpec(keyBytes);
-        KeyFactory kf = KeyFactory.getInstance("RSA");
-        caPublicKey = kf.generatePublic(spec);
+            X509EncodedKeySpec spec =
+              new X509EncodedKeySpec(keyBytes);
+            KeyFactory kf = KeyFactory.getInstance("RSA");
+            caPublicKey = kf.generatePublic(spec);
+        } catch (Exception ex) {
+            System.out.print(ex);
+        }
+        
 
 
     }
@@ -156,19 +161,23 @@ public class SSLlib{
         //(server will simulate external certifying authority by signing own certificate as "CA")
         // (adapted from http://stackoverflow.com/questions/11410770/load-rsa-public-key-from-file)
         //get private key from CAkey_private.der
+        try {
+            File f = new File("CAkey_private.der");
+            FileInputStream fis = new FileInputStream(f);
+            DataInputStream dis = new DataInputStream(fis);
+            byte[] keyBytes = new byte[(int)f.length()];
+            dis.readFully(keyBytes);
+            dis.close();
+            fis.close();
 
-        File f = new File("CAkey_private.der");
-        FileInputStream fis = new FileInputStream(f);
-        DataInputStream dis = new DataInputStream(fis);
-        byte[] keyBytes = new byte[(int)f.length()];
-        dis.readFully(keyBytes);
-        dis.close();
-        fis.close();
-
-        PKCS8EncodedKeySpec spec =
-          new PKCS8EncodedKeySpec(keyBytes);
-        KeyFactory kf = KeyFactory.getInstance("RSA");
-        caPrivateKey = kf.generatePrivate(spec);
+            PKCS8EncodedKeySpec spec =
+              new PKCS8EncodedKeySpec(keyBytes);
+            KeyFactory kf = KeyFactory.getInstance("RSA");
+            caPrivateKey = kf.generatePrivate(spec);
+        } catch (Exception ex) {
+            System.out.print(ex);
+        }
+        
 
     }
 
@@ -330,7 +339,7 @@ public class SSLlib{
 		Cipher c = Cipher.getInstance("RSA/ECB/PKCS1Padding");
 		c.init(Cipher.ENCRYPT_MODE, pubKey);
 		//byte[] pmsEncrypted = c.doFinal(pms.getBytes("UTF-8"));
-		sslSendPacket(Transport.C_KEYX, symEncrypted);
+		//sslSendPacket(Transport.C_KEYX, symEncrypted);
 		
 		// return success or failure
 		return 1;
@@ -342,7 +351,7 @@ public class SSLlib{
 		c.init(Cipher.DECRYPT_MODE, privKey);
 		byte[] pms = c.doFinal(pay);
 		// after this, generate symmetric key w/PMS & rand_s and rand_c
-		symKey = getSymKey();
+		//symKey = getSymKey();
 		// return success or failure
 		return 1;
 	}
@@ -378,8 +387,13 @@ public class SSLlib{
 
         //write the certificate signing request
         String cert = "";
-        cert = String.format("-----BEGIN CERTIFICATE-----%s, %s, %s, %s,", domain, organization, country, 
-            new String(pubKey.getEncoded(), "UTF-8"));
+        String pubKeyString;
+        try {
+            pubKeyString = new String(pubKey.getEncoded(), "UTF-8");
+        } catch (Exception ex) {
+            System.out.print(ex);
+        }
+        cert = String.format("-----BEGIN CERTIFICATE-----%s, %s, %s, %s,", domain, organization, country, pubKeyString);
 
         //simulate certifying authority: 
         // (adapted from http://stackoverflow.com/questions/11410770/load-rsa-public-key-from-file)
@@ -440,11 +454,16 @@ public class SSLlib{
         }
 
         //save server's public key from the cert
-        byte[] pubKeyBytes = certParse[3].getBytes("UTF-8");
-        X509EncodedKeySpec spec =
-          new X509EncodedKeySpec(pubKeyBytes);
-        KeyFactory kf = KeyFactory.getInstance("RSA");
-        PublicKey pubKey = kf.generatePublic(spec);
+        try {
+            byte[] pubKeyBytes = certParse[3].getBytes("UTF-8");
+            X509EncodedKeySpec spec =
+              new X509EncodedKeySpec(pubKeyBytes);
+            KeyFactory kf = KeyFactory.getInstance("RSA");
+            PublicKey pubKey = kf.generatePublic(spec);
+        } catch (Exception ex) {
+            System.out.print(ex);
+        }
+        
 
         return true;
 
