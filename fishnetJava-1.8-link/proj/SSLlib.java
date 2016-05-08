@@ -118,7 +118,7 @@ public class SSLlib{
         // (adapted from http://stackoverflow.com/questions/11410770/load-rsa-public-key-from-file)
 
         try {
-            File f = new File("CAkey_public.der");
+            File f = new File("proj/CAkey_public.der");
             FileInputStream fis = new FileInputStream(f);
             DataInputStream dis = new DataInputStream(fis);
             byte[] keyBytes = new byte[(int)f.length()];
@@ -162,7 +162,7 @@ public class SSLlib{
         // (adapted from http://stackoverflow.com/questions/11410770/load-rsa-public-key-from-file)
         //get private key from CAkey_private.der
         try {
-            File f = new File("CAkey_private.der");
+            File f = new File("proj/CAkey_private.der");
             FileInputStream fis = new FileInputStream(f);
             DataInputStream dis = new DataInputStream(fis);
             byte[] keyBytes = new byte[(int)f.length()];
