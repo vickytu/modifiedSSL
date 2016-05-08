@@ -46,7 +46,7 @@ public class Transport {
     public Transport(int srcPort, int destPort, int type, int window, int seqNum, byte[] payload) throws IllegalArgumentException {
 	if(srcPort < 0 || srcPort > MAX_PORT_NUM   ||
 	   destPort < 0 || destPort > MAX_PORT_NUM ||
-	   type < SYN || type > DATA               ||
+	   type < SYN || type > ALERT              ||
 	   payload.length > MAX_PAYLOAD_SIZE) {
 	    throw new IllegalArgumentException("Illegal arguments given to Transport packet");
 	}
