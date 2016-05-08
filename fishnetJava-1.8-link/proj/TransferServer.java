@@ -63,7 +63,7 @@ public class TransferServer extends FishThread {
             // try to accept an established connection
             TCPSock connSock = serverSock.accept();
             if (connSock == null) return;
-            connSock.sslLib.isServer = true;
+            connSock.isServer = true;
             int ret;
             while((ret = connSock.sslLib.ssl_accept()) > 1) {
                 //sleep(10)

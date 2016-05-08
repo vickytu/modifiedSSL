@@ -296,7 +296,7 @@ public class TCPManager {
         else if (type == Transport.CERT){
             if (!receiver.isServer &&  receiver.sslLib.isCert()) {
                 if(!receiver.sslLib.parseCert(pay)) {
-                    sslLib.die = true;
+                    receiver.sslLib.die = true;
                     return;
                 }
                 receiver.sslLib.setS_Done();
@@ -338,7 +338,7 @@ public class TCPManager {
                 receiver.sslLib.setFinished();
             }
             else if (!receiver.isServer && receiver.sslLib.isHelo()) {
-                receiver.sslLib.parseFinished();
+                receiver.sslLib.parseFinished(pay);
                 receiver.sslLib.setDone();
             }
             else {

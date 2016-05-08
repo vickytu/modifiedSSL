@@ -16,6 +16,8 @@ import java.lang.Math;
 import java.io.*;
 import java.security.*;
 import java.security.spec.*;
+import java.nio.charset.StandardCharsets;
+import javax.crypto.Cipher;
 
 public class SSLlib{
 
@@ -23,14 +25,14 @@ public class SSLlib{
     public TCPManager tcpMan;
     public SSLState sslState;
     private Random gen = null;
-    private String pubKey = null;
-    private String privKey = null;
+    private PublicKey pubKey = null;
+    private PrivateKey privKey = null;
 
-    private String symKey;
+    private String symKey;          //not sure what type this should be?
 
     public String ver = null;
     public String cipher = null;
-    public int sessID = null;
+    public int sessID;
 
     public String domain = "isitbagelbrunch.com";
     public String organization = "VFD";
@@ -71,17 +73,17 @@ public class SSLlib{
             helo = String.format("%s, %s, %d, %d", ver, cipher, sessID, rand_c);
         }
         byte[] payload = helo.getBytes(StandardCharsets.UTF_8); 
-        sslSendPacket(Treanport.HELO, payload);
+        sslSendPacket(Transport.HELO, payload);
     }
 
     public void parseHelo(byte[] pay){
         String helo = new String(pay, StandardCharsets.UTF_8);
         String delims = "[,]";
         String[] tokens = helo.split(delims);
-        ver = token[0];
-        cipher = token[1];
-        sessID = Integer.parseInt(token[2]);
-        int rand = Integer.parseInt(token[3]);
+        ver = tokens[0];
+        cipher = tokens[1];
+        sessID = Integer.parseInt(tokens[2]);
+        int rand = Integer.parseInt(tokens[3]);
         if (sock.isServer == true){
             rand_c = rand;
         }else{
@@ -90,7 +92,8 @@ public class SSLlib{
     }
 
     /*Return: 0 if 
-        TLS/SSL handshake unsuccessful but was shut down controlled and by the specifications of the TLS/SSL protocol. Call SSL_get_error() with the return value ret to find out the reason.
+        TLS/SSL handshake unsuccessful but was shut down controlled and by the specifications of the TLS/SSL protocol. 
+        Call SSL_get_error() with the return value ret to find out the reason.
         1 if handshake was successful, connection established
         < 0 if handshake unsuccessful bc fatal error. Again call SSL_get_error()
         > 1 if call me again, maybe
@@ -149,8 +152,8 @@ public class SSLlib{
     /*Return: same as ssl_accept*/
     public int ssl_connect(){
         // CLIENT STATES ARE FOR THOSE MESSAGES IT IS EXPECTING !!!!!!!!
-        if(sock.state == TCPSock.ESTABLISHED) {
-            sock.state = TCPSock.HANDSHAKE;
+        if(sock.state == TCPSock.State.ESTABLISHED) {
+            sock.state = TCPSock.State.HANDSHAKE;
             //send HELO
             sendHelo();
             return 2;
@@ -266,7 +269,7 @@ public class SSLlib{
 		
 		// after this, generate symmetric key w/PMS & rand_s and rand_c (RC4)
 		// what input is needed?
-		symKey = genSymKey();
+		symKey = getSymKey();
 		// return success or failure
 		return 1;
 	}
@@ -277,17 +280,17 @@ public class SSLlib{
 		c.init(Cipher.DECRYPT_MODE, privKey);
 		byte[] pms = c.doFinal(pay);
 		// after this, generate symmetric key w/PMS & rand_s and rand_c
-		symKey = genSymKey();
+		symKey = getSymKey();
 		// return success or failure
 		return 1;
 	}
 	
-	public int getSymKey() {
+	public String getSymKey() {
 		// KeyGenerator keyGen = 
 		// generate symkey with pms, rand_s, rand_c
 		// sooooomehow...
 		// return something (should be the symKey, dunno what it should be yet)
-        return 1;
+        return null;
 	}
 	
 	// make packet times which can be sent 
@@ -308,7 +311,7 @@ public class SSLlib{
 
         //write the certificate signing request
         String cert = "";
-        cert = String.format("%s, %s, %s, %s,", domain, organization, country, String(pubKey.getBytes("UTF-8")));
+        cert = String.format("%s, %s, %s, %s,", domain, organization, country, new String(pubKey.getEncoded(), "UTF-8"));
 
         //simulate certifying authority: 
         // (adapted from http://stackoverflow.com/questions/11410770/load-rsa-public-key-from-file)
@@ -333,7 +336,7 @@ public class SSLlib{
                 sign.initSign(caPrivateKey);
                 sign.update(cert.getBytes("UTF-8"));
                 //CHECK THIS vvvv
-                signature = String(sign.sign(), "UTF-8");
+                signature = new String(sign.sign(), "UTF-8");
             } catch (Exception ex) {
                 System.out.print(ex);
             }
@@ -347,7 +350,7 @@ public class SSLlib{
 
     public boolean parseCert(byte[] payload) {
         //unpack payload, split into message and signature
-        String payloadString = String(payload);
+        String payloadString = new String(payload);
         String[] payloadParse = payloadString.split(",", 5);
         String message = payloadParse[0] + payloadParse[1] + payloadParse[2] + payloadParse[3];
         String signature = payloadParse[4];
@@ -375,16 +378,26 @@ public class SSLlib{
             Signature sign = Signature.getInstance("SHA1withRSA");
             sign.initVerify(caPublicKey);
             sign.update(message.getBytes("UTF-8"));
-            return sign.verify(signature.getBytes("UTF-8"));
+            if(!sign.verify(signature.getBytes("UTF-8"))) {
+                return false;
+            }
         } catch (Exception ex) {
             System.out.print(ex);
         }
+
+        byte[] pubKeyBytes = payloadParse[3].getBytes("UTF-8");
+
+
+    }
+
+    public void sendS_done() {
+        //TODO
     }
 
     public void sendFinished() {
         //send the digest
-        helo = String.format("%s, %s, %d, %d", ver, cipher, sessID, rand_s);
-        byte[] buffer = helo.getBytes(StandardCharsets.UTF_8);
+        String finished = String.format("%s, %s, %d, %d", ver, cipher, sessID, rand_s);
+        byte[] buffer = finished.getBytes(StandardCharsets.UTF_8);
         MessageDigest md = MessageDigest.getInstance("SHA-256");
         md.update(buffer);
         byte [] digest = md.digest();
