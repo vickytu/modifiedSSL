@@ -71,6 +71,7 @@ public class TCPSock {
         incrWin = 0;
         unacked = new LinkedList<PacketTime>();
         finSeq = -1;
+        sslLib = new SSLlib(this, tcpMan);
         try {
             buffer = ByteBuffer.allocate(BUFFER_SIZE);
         } catch (Exception e) {
