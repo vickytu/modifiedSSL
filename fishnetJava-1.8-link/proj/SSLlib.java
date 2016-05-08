@@ -387,6 +387,7 @@ public class SSLlib{
 			if (t != null) {
 				PacketTime pt = new PacketTime(t, tcpMan.getMan().now());
 				count += toWrite;
+				tcpMan.sendPkt(sock.destAddr, pt, sock, sock.seqNum);
 			}
 		}
 		return 1; // success
