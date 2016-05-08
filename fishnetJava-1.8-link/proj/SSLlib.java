@@ -396,13 +396,12 @@ public class SSLlib{
 
         //write the certificate signing request
         String cert = "";
-        String pubKeyString;
         try {
-            pubKeyString = new String(pubKey.getEncoded(), "UTF-8");
+            String pubKeyString = new String(pubKey.getEncoded(), "UTF-8");
+            cert = String.format("-----BEGIN CERTIFICATE-----%s, %s, %s, %s,", domain, organization, country, pubKeyString);
         } catch (Exception ex) {
             System.out.print(ex);
         }
-        cert = String.format("-----BEGIN CERTIFICATE-----%s, %s, %s, %s,", domain, organization, country, pubKeyString);
 
         //simulate certifying authority: 
         // (adapted from http://stackoverflow.com/questions/11410770/load-rsa-public-key-from-file)
@@ -522,10 +521,11 @@ public class SSLlib{
             if (Arrays.equals(digest, payload)){
                 return 0;
             }
-            return -1;
+            
         }catch (NoSuchAlgorithmException e){
             System.err.println("NoSuchAlgorithmException: " + e.getMessage());
         }
+        return -1;
     }
 
 
