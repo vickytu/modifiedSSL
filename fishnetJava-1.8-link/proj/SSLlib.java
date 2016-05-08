@@ -340,13 +340,17 @@ public class SSLlib{
 	public int sendKey() {
 
 		try {
-			// create symmetric key
+			// create symmetric key -- SIMPLIFIED FOR NOW
+			KeyGenerator keyGen = KeyGenerator.getInstance("AES");
+			keyGen.init(80);	// to be really secure, should be 112~~~!!! also work with padding once we have PMS and stuff
+			symKey = keyGen.generateKey();
 			
 			// encrypt symmetric key with public key (RSA)
 			Cipher c = Cipher.getInstance("RSA/ECB/PKCS1Padding");
 			c.init(Cipher.ENCRYPT_MODE, pubKey);
-			//byte[] pmsEncrypted = c.doFinal(pms.getBytes("UTF-8"));
-			//sslSendPacket(Transport.C_KEYX, symEncrypted);
+			byte[] symEncrypted = c.doFinal(sym.getEncoded());
+			sslSendPacket(Transport.C_KEYX, symEncrypted);
+			
 		} catch (Exception e) {
 			System.out.println("Error caught in sendKey: ");
             e.printStackTrace();
@@ -361,7 +365,11 @@ public class SSLlib{
 			// decrypt pms with private key (RSA)
 			Cipher c = Cipher.getInstance("RSA/ECB/PKCS1Padding");
 			c.init(Cipher.DECRYPT_MODE, privKey);
-			byte[] pms = c.doFinal(pay);
+			byte[] symKeyBytes = c.doFinal(pay);
+			
+			// turn byte[] into SecretKey
+			symKey = new SecretKeySpec(symKeyBytes, "AES");
+			
 			// after this, generate symmetric key w/PMS & rand_s and rand_c
 			// return success or failure
 		} catch (Exception e) {
