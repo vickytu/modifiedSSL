@@ -522,6 +522,7 @@ public class SSLlib{
 		} catch (Exception e) {
 			System.out.println("Error caught in sendKey: ");
             e.printStackTrace();
+			return -1;
 		}	
 		// return success or failure
 		return 1;
@@ -544,6 +545,7 @@ public class SSLlib{
 		} catch (Exception e) {
 			System.out.println("Error caught in parseKey: ");
             e.printStackTrace();
+			return -1;
 		}
 
 		return 1;
@@ -554,7 +556,8 @@ public class SSLlib{
 	// with HMAC-MD5 in combination with rand_c and rand_s
 	public void genSymKey() {
 		
-		byte[] pmsFirst = new byte[24];
+		try {
+			byte[] pmsFirst = new byte[24];
 			System.arraycopy(pms, 0, pmsFirst, 0, 24);
 			byte[] pmsSecond = new byte[24];
 			System.arraycopy(pms, 0, pmsSecond, 0, 24);
@@ -574,7 +577,7 @@ public class SSLlib{
 			byte[] p_hash1 = sha1_HMAC.doFinal(seed);
 			while(p_hash1.length < 48) {
 				
-				byte[] newseed = byte[64 + p_hash1.length];
+				byte[] newseed = new byte[64 + p_hash1.length];
 				System.arraycopy(p_hash1, 0, newseed, 0, p_hash1.length);
 				System.arraycopy(seed, 0, newseed, p_hash1.length, 64);
 				//seed1 = newseed;
@@ -585,7 +588,7 @@ public class SSLlib{
 			byte[] p_hash2 = md5_HMAC.doFinal(seed);
 			while(p_hash2.length < 48) {
 				
-				byte[] newseed = byte[64 + p_hash2.length];
+				byte[] newseed = new byte[64 + p_hash2.length];
 				System.arraycopy(p_hash2, 0, newseed, 0, p_hash2.length);
 				System.arraycopy(seed, 0, newseed, p_hash2.length, p_hash2.length + 64);
 				//seed1 = newseed;
@@ -593,9 +596,9 @@ public class SSLlib{
 				
 			}
 			
-			byte[] finalp1 = byte[48];
+			byte[] finalp1 = new byte[48];
 			System.arraycopy(p_hash1, 0, finalp1, 0, 48);
-			byte[] finalp2 = byte[48];
+			byte[] finalp2 = new byte[48];
 			System.arraycopy(p_hash2, 0, finalp2, 0, 48);
 			byte[] symKeyb = new byte[48];
 			
@@ -604,6 +607,12 @@ public class SSLlib{
 			}
 			
 			symKey = SecretKeySpec(symKeyb, 0, 48, "AES");
+		}
+		catch (Exception e) {
+			System.out.println("Error caught in genSymKey: ");
+            e.printStackTrace();
+			return -1;
+		}
 			
 	}
 	
