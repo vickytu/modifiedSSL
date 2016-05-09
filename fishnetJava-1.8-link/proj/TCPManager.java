@@ -311,7 +311,7 @@ public class TCPManager {
         }
 
         else if (type == Transport.S_DONE){
-            if (!receiver.isServer &&  receiver.sslLib.isCert()) {
+            if (!receiver.isServer && receiver.sslLib.isS_Done()) {
                 receiver.sslLib.sendKey();
                 receiver.sslLib.sendFinished();
                 receiver.sslLib.setFinished();
