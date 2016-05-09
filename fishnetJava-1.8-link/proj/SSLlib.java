@@ -486,7 +486,8 @@ public class SSLlib{
 			genSymKey();
 			
 			// create symmetric key -- SIMPLIFIED FOR NOW
-			/*KeyGenerator keyGen = KeyGenerator.getInstance("AES");
+			/* KeyGenerator keyGen = KeyGenerator.getInstance("AES");
+
 			keyGen.init(128);	// to be really secure, should be 112~~~!!! 
                                     //also work with padding once we have PMS and stuff
 			symKey = keyGen.generateKey();
@@ -587,8 +588,8 @@ public class SSLlib{
 	
 
     public void sendS_done() {
-        byte[] empty = new byte[0];
-        sslSendPacket(Transport.S_DONE, empty);
+        byte[] dummy = new byte[1];
+        sslSendPacket(Transport.S_DONE, dummy);
         System.out.println("S_done sent");
     }
 
@@ -647,6 +648,7 @@ public class SSLlib{
         int len = payload.length;
         
         while (count < len) {
+        System.out.printf("###################################################################### SENDING A %d\n", type);
             
             int toWrite = Math.min((len - count), Transport.MAX_PAYLOAD_SIZE);
             byte[] bufWrite = Arrays.copyOfRange(payload, count, count + toWrite);
