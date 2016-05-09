@@ -572,7 +572,7 @@ public class SSLlib{
 			
 			byte[] seed = new byte[64];
 			System.arraycopy(rand_c, 0, seed, 0, 32);
-			System.arraycopy(rand_s, 0, seed, 32, 64);
+			System.arraycopy(rand_s, 0, seed, 32, 32);
 			
 			Mac sha1_HMAC = Mac.getInstance("HmacSHA1");
 			SecretKeySpec pmsKey1 = new SecretKeySpec(pmsFirst, "HmacSHA1");
