@@ -112,10 +112,6 @@ public class TransferServer extends FishThread {
                 return;
             }
 
-            System.out.println("server ending now");
-            sock.release();
-            this.stop();
-
             if (!sock.isClosed()) {
                 //node.logOutput("receiving...");
 

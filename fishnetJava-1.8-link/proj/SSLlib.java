@@ -218,7 +218,7 @@ public class SSLlib{
             sendCert();
             sendS_done();
             sslState = SSLState.HELO;
-            return -1;      //DEBUG CHANGE BACK !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            return 2;
 
         }
         else if (sslState == SSLState.HELO) {
@@ -275,7 +275,7 @@ public class SSLlib{
         else if (sslState == SSLState.S_DONE) {
             // tcpman called something to deal with cert
             System.out.println("Client state == S_DONE");
-            return -1;      //DEBUG CHANGE THIS!!!!!!!!!!!!!!!!!!!!!!!
+            return 2;
 
         }
         else if (sslState == SSLState.FINISHED) {
@@ -404,11 +404,13 @@ public class SSLlib{
             if(payloadString.startsWith("-----BEGIN CERTIFICATE-----")) {
                 isCertDone = false;
                 payloadString = payloadString.replace("-----BEGIN CERTIFICATE-----", "");
-            } if(payloadString.endsWith("-----END CERTIFICATE-----")) {
-                isCertDone = true;
-                payloadString = payloadString.replace("-----END CERTIFICATE-----", "");
-            }
+            } 
             certSoFar = certSoFar + payloadString;
+
+            if(certSoFar.endsWith("-----END CERTIFICATE-----")) {
+                isCertDone = true;
+                certSoFar = certSoFar.replace("-----END CERTIFICATE-----", "");
+            }
             if(!isCertDone) {
                 return true;
             } 
@@ -423,12 +425,6 @@ public class SSLlib{
         String message = certParse[0];
         String[] messageParse = message.split(",", 4);
         String signature = certParse[1];
-
-        System.out.println(certParse[0]);
-        System.out.println(messageParse[0]);
-        System.out.println(messageParse[1]);
-        System.out.println(messageParse[2]);
-        System.out.println(messageParse[3]);
 
         if(!messageParse[0].equals(domain)) {
             System.out.println("Error: SSL domain does not match");
@@ -450,7 +446,7 @@ public class SSLlib{
 
         //save server's public key from the cert
         try {
-            byte[] pubKeyBytes = messageParse[3].getBytes("UTF-8");
+            byte[] pubKeyBytes = Base64.getDecoder().decode(messageParse[3].getBytes("UTF-8"));
             X509EncodedKeySpec spec =
               new X509EncodedKeySpec(pubKeyBytes);
             KeyFactory kf = KeyFactory.getInstance("RSA");

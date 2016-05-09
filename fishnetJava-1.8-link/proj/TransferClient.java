@@ -72,10 +72,6 @@ public class TransferClient extends FishThread {
                 return;
             }
 
-            System.out.println("client ending now");
-            sock.release();
-            this.stop();
-
             if (startTime == 0) {
                 // record starting time
                 startTime = manager.now();
