@@ -471,7 +471,7 @@ public class SSLlib{
             X509EncodedKeySpec spec =
               new X509EncodedKeySpec(pubKeyBytes);
             KeyFactory kf = KeyFactory.getInstance("RSA");
-            PublicKey pubKey = kf.generatePublic(spec);
+            pubKey = kf.generatePublic(spec);
         } catch (Exception ex) {
             ex.printStackTrace();
         }
