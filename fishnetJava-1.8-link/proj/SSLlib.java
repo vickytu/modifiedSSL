@@ -27,7 +27,7 @@ public class SSLlib{
     public TCPSock sock;
     public TCPManager tcpMan;
     public SSLState sslState;
-    private Random gen = null;
+    private SecureRandom gen = null;
     private PublicKey pubKey = null;
     private PrivateKey privKey = null;
 	private byte[] pms = null;
@@ -44,8 +44,8 @@ public class SSLlib{
     private String organization = "VFD";
     private String country = "Genovia";
 
-    private int rand_c;
-    private int rand_s;
+    private byte[] rand_c;
+    private byte[] rand_s;
 
     public boolean die = false;
 
@@ -69,7 +69,7 @@ public class SSLlib{
         this.tcpMan = tcpMan;
         this.sessID = 0;
         this.sslState = SSLState.NEW;
-        this.gen = new Random();
+        this.gen = new SecureRandom();
     }
 
     public boolean isNew() {
@@ -339,14 +339,21 @@ public class SSLlib{
     public void sendHelo(){
 
         String helo = "";
+        String str = "";
         if (sock.isServer == true){
             System.out.println("Server:");
-            rand_s = gen.nextInt(); //may have problems if sendHelo is called multiple times
-            helo = String.format("%s,%s,%d,%d", ver, cipher, sessID, rand_s);
+            rand_s = new byte[32];
+            gen.nextBytes(rand_s);
+            //rand_s = gen.nextInt(); //may have problems if sendHelo is called multiple times
+            str = new String(rand_s, StandardCharsets.UTF_8);
+            helo = String.format("%s,%s,%d,%s", ver, cipher, sessID, rand_s);
         } else {
             System.out.println("Client:");
-            rand_c = gen.nextInt();
-            helo = String.format("%s,%s,%d,%d", ver, cipher, sessID, rand_c);
+            rand_c = new byte[32];
+            gen.nextBytes(rand_c);
+            //rand_c = gen.nextInt();//may have problems if sendHelo is called multiple times
+            str = new String(rand_c, StandardCharsets.UTF_8);
+            helo = String.format("%s,%s,%d,%s", ver, cipher, sessID, rand_c);
         }
         byte[] payload = helo.getBytes(StandardCharsets.UTF_8); 
         sslSendPacket(Transport.HELO, payload);
@@ -361,7 +368,8 @@ public class SSLlib{
         ver = tokens[0];
         cipher = tokens[1];
         sessID = Integer.parseInt(tokens[2]);
-        int rand = Integer.parseInt(tokens[3]);
+        //int rand = Integer.parseInt(tokens[3]);
+        byte[] rand = tokens[3].getBytes(StandardCharsets.UTF_8);
         if (sock.isServer == true){
             rand_c = rand;
         }else{
@@ -624,9 +632,9 @@ public class SSLlib{
         String encodedKey = Base64.getEncoder().encodeToString(symKey.getEncoded()); 
                                                                     //symKey is type SecretKey
         if (sock.isServer == true){
-            finished = String.format("%s,%s,%d,%d", ver, cipher, sessID, rand_s);
+            finished = String.format("%s,%s,%d,%s", ver, cipher, sessID, new String(rand_s, StandardCharsets.UTF_8));
         }else{
-            finished = String.format("%s,%s,%d,%d,%s", ver, cipher, sessID, rand_c, encodedKey);
+            finished = String.format("%s,%s,%d,%s,%s", ver, cipher, sessID, new String(rand_c, StandardCharsets.UTF_8), encodedKey);
         }
         byte[] buffer = finished.getBytes(StandardCharsets.UTF_8);
         try{
@@ -646,9 +654,9 @@ public class SSLlib{
         String finished = "";
         String encodedKey = Base64.getEncoder().encodeToString(symKey.getEncoded());
         if (sock.isServer == true){
-            finished = String.format("%s,%s,%d,%d", ver, cipher, sessID, rand_s);
+            finished = String.format("%s,%s,%d,%s", ver, cipher, sessID, new String(rand_s, StandardCharsets.UTF_8));
         }else{
-            finished = String.format("%s,%s,%d,%d,%s", ver, cipher, sessID, rand_c, encodedKey);
+            finished = String.format("%s,%s,%d,%s,%s", ver, cipher, sessID, new String(rand_c, StandardCharsets.UTF_8), encodedKey);
         }
         byte[] buffer = finished.getBytes(StandardCharsets.UTF_8);
         try{
