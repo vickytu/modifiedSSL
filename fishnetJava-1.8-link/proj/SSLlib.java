@@ -603,15 +603,14 @@ public class SSLlib{
 			byte[] symKeyb = new byte[48];
 			
 			for (int i = 0; i < 48; i++) {
-				symKeyb[i] = finalp1[i] ^ finalp2[i];
+				symKeyb[i] = (byte)(finalp1[i] ^ finalp2[i]);
 			}
 			
-			symKey = SecretKeySpec(symKeyb, 0, 48, "AES");
+			symKey = new SecretKeySpec(symKeyb, 0, 48, "AES");
 		}
 		catch (Exception e) {
 			System.out.println("Error caught in genSymKey: ");
             e.printStackTrace();
-			return -1;
 		}
 			
 	}
