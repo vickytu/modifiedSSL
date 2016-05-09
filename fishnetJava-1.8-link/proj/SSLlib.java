@@ -157,7 +157,8 @@ public class SSLlib{
         sock.isServer = true;
 
         //generate public and private keys
-        // adapted from "https://examples.javacodegeeks.com/core-java/security/get-bytes-of-a-key-pair-example/"
+        // adapted from 
+        //"https://examples.javacodegeeks.com/core-java/security/get-bytes-of-a-key-pair-example/"
 
         try {
             String algorithm = "RSA";
@@ -366,7 +367,8 @@ public class SSLlib{
         String cert = "";
         try {
             String pubKeyString = Base64.getEncoder().encodeToString(pubKey.getEncoded());
-            cert = String.format("-----BEGIN CERTIFICATE-----%s,%s,%s,%sEND MESSAGE", domain, organization, country, pubKeyString);
+            cert = String.format("-----BEGIN CERTIFICATE-----%s,%s,%s,%sEND MESSAGE", 
+                domain, organization, country, pubKeyString);
         } catch (Exception ex) {
             ex.printStackTrace();
         }
@@ -433,10 +435,6 @@ public class SSLlib{
             return false;
         }
 
-        if(!signatureComp.equals(signature)) {
-            System.out.println("SIGNATURES NOT EQUAL");
-        }
-
         //verify signed message
         try {
             Signature sign = Signature.getInstance("SHA1withRSA");
@@ -473,7 +471,8 @@ public class SSLlib{
 		try {
 			// create symmetric key -- SIMPLIFIED FOR NOW
 			KeyGenerator keyGen = KeyGenerator.getInstance("AES");
-			keyGen.init(80);	// to be really secure, should be 112~~~!!! also work with padding once we have PMS and stuff
+			keyGen.init(80);	// to be really secure, should be 112~~~!!! 
+                                    //also work with padding once we have PMS and stuff
 			symKey = keyGen.generateKey();
 			
 			// encrypt symmetric key with public key (RSA)
@@ -520,7 +519,8 @@ public class SSLlib{
     public void sendFinished() {
         //send the digest of messages sender has sent
         String finished = "";
-        String encodedKey = Base64.getEncoder().encodeToString(symKey.getEncoded()); //symKey is type SecretKey
+        String encodedKey = Base64.getEncoder().encodeToString(symKey.getEncoded()); 
+                                                                    //symKey is type SecretKey
         if (sock.isServer == true){
             finished = String.format("%s,%s,%d,%d", ver, cipher, sessID, rand_s);
         }else{
@@ -576,7 +576,8 @@ public class SSLlib{
             byte[] bufWrite = Arrays.copyOfRange(payload, count, count + toWrite);
             Transport t;
             try {
-                t = new Transport(sock.localPort, sock.destPort, type, sock.windowSize, sock.seqNum, bufWrite);
+                t = new Transport(sock.localPort, sock.destPort, type, 
+                    sock.windowSize, sock.seqNum, bufWrite);
                 
             } catch (Exception e) {
                 System.out.println("Error caught: ");
