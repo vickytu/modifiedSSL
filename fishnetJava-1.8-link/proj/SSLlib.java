@@ -93,7 +93,7 @@ public class SSLlib{
     public boolean isDone() {
         return (sslState == SSLState.DONE);
     }
-
+    
     public void setNew() {
         sslState = SSLState.NEW;
     }
@@ -309,20 +309,27 @@ public class SSLlib{
 
     // FUNCTIONS TO MAKE
 
-    /*Signature: int ssl_read(SSL *ssl, void *buf, int num)
-            Return:  > 0 if successful, w/number of bytes read
-           0 if unsuccessful, but clean (maybe have been shutdown)
-           <0 if unsuccessful, but needs action, some sort of error*/
-    public int ssl_read(byte[] buf, int pos, int len){
-        int bytesRead = 0;
+    // decrypt ciphertext using the symmetric key
+    public byte[] ssl_decrypt(byte[] cipherText){
 
-        return bytesRead;
+        if(symKey == null) {
+            System.out.println("Warning: data is not SSL decrypted");
+            return cipherText;
+        }
+        
+        return masterCipher.update(cipherText);
+
     }
 
-    /*Signature: int ssl_write (SSL *ssl, const void *buf, int num)
-        Return: same as ssl_read*/
-    public int ssl_write(){
-        return 0;   
+    // encrypt plaintext using the symmetric key
+    public byte[] ssl_encrypt(byte[] plainText){
+        if(symKey == null) {
+            System.out.println("Warning: data is not SSL encrypted");
+            return plainText;
+        }
+
+        return masterCipher.update(plainText);
+           
     }
 
     /*Signature: int ssl_shutdown(SSL *ssl)

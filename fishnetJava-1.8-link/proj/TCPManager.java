@@ -217,7 +217,7 @@ public class TCPManager {
                     try {
                         // check if buffer has enough space
                         if (t.getPayload().length <= (receiver.buffer.capacity() - receiver.buffer.position())) {
-                            receiver.buffer.put(t.getPayload());
+                            receiver.buffer.put(sslLib.ssl_decrypt(t.getPayload()));
                             receiver.acked += t.getPayload().length;
                             System.out.print(":");
                             int winSize = receiver.buffer.capacity() - receiver.buffer.position();
