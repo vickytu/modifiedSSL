@@ -159,7 +159,7 @@ public class TCPSock {
     }
 
     public boolean isConnected() {
-        return (state == State.ESTABLISHED);
+        return (state == State.ESTABLISHED || state == State.HANDSHAKE);
     }
 
     public void connectSock() {

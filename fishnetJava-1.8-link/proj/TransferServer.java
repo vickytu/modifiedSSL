@@ -59,32 +59,17 @@ public class TransferServer extends FishThread {
     }
 
     public void execute() {
-        System.out.printf("%s", "got executed");
+
         if (!serverSock.isClosed()) {
             // try to accept an established connection
             TCPSock connSock = serverSock.accept();
             if (connSock == null) return;
-            connSock.sslLib.ssl_server_init();
-            int ret;
-            if((ret = connSock.sslLib.ssl_accept()) > 1) {
-                node.logOutput("shaking hands ...");
-                System.out.printf("ret: %d", ret);
-                return; 
-            }
-            
-            node.logError("shouldn't reach here either");
-            if(ret < 0) {
-                node.logOutput("Fatal SSL error");
-                connSock.release();
-                this.stop();
-                return;
-            }
 
             // start a worker thread to serve the new connection
             node.logOutput("time = " + manager.now() + " msec");
             node.logOutput("connection accepted");
             TransferWorker worker = new
-                TransferWorker(manager, node, connSock, workerInterval, sz);
+                TransferWorker(manager, node, connSock, workerInterval, sz);            
             worker.start();
         } else {
             // server socket closed, shutdown
@@ -109,11 +94,31 @@ public class TransferServer extends FishThread {
             this.pos = 0;
 
             this.setInterval(interval);
+            sock.sslLib.ssl_server_init();
+
         }
 
         public void execute() {
+            int ret;
+            if((ret = sock.sslLib.ssl_accept()) > 1) {
+                node.logOutput("shaking hands ...");
+                return; 
+            }
+            
+            if(ret < 0) {
+                node.logOutput("Fatal SSL error");
+                sock.release();
+                this.stop();
+                return;
+            }
+
+            System.out.println("server ending now");
+            sock.release();
+            this.stop();
+
             if (!sock.isClosed()) {
                 //node.logOutput("receiving...");
+
                 int index = pos % buf.length;
 
                 int len = buf.length - index;

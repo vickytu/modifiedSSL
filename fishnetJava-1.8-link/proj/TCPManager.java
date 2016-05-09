@@ -279,8 +279,7 @@ public class TCPManager {
         else if (type == Transport.HELO){
             if (receiver.isServer &&  receiver.sslLib.isNew()) {
                 receiver.sslLib.parseHelo(pay);
-                receiver.sslLib.setHandshake();
-                //receiver.sslLib.setHelo();
+                receiver.state = TCPSock.State.HANDSHAKE;
 
             }
             else if (!receiver.isServer && receiver.sslLib.isHelo()) {

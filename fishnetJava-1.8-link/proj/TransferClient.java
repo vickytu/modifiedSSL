@@ -59,19 +59,22 @@ public class TransferClient extends FishThread {
             return;
         } else if (sock.isConnected()) {
 
-            node.logOutput("starting connect");
             int ret;
             if((ret = sock.sslLib.ssl_connect()) > 1) {
                 node.logOutput("shaking hands ...");
                 return;
-            } 
-            node.logError("shouldn't reach here either");
+            }  
+
             if(ret < 0) {
                 node.logOutput("Fatal SSL error");
                 sock.release();
                 this.stop();
                 return;
             }
+
+            System.out.println("client ending now");
+            sock.release();
+            this.stop();
 
             if (startTime == 0) {
                 // record starting time
@@ -138,7 +141,7 @@ public class TransferClient extends FishThread {
             return;
         }
 
-        node.logError("shouldn't reach here");
+        node.logError("shouldn't reach here!!");
         System.exit(1);
     }
 }

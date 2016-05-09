@@ -19,6 +19,7 @@ import java.security.spec.*;
 import java.nio.charset.StandardCharsets;
 import javax.crypto.*;
 import javax.crypto.spec.*;
+import java.util.Base64.*;
 
 
 public class SSLlib{
@@ -71,48 +72,53 @@ public class SSLlib{
         this.gen = new Random();
     }
 
-    public void sendHelo(){
-
-        String helo = "";
-        if (sock.isServer == true){
-            System.out.printf("%s", "From Server: ");
-            rand_s = gen.nextInt(); //may have problems if sendHelo is called multiple times
-            helo = String.format("%s,%s,%d,%d", ver, cipher, sessID, rand_s);
-        }else{
-            System.out.printf("%s", "From Client: ");
-            rand_c = gen.nextInt();
-            helo = String.format("%s,%s,%d,%d", ver, cipher, sessID, rand_c);
-        }
-        byte[] payload = helo.getBytes(StandardCharsets.UTF_8); 
-        sslSendPacket(Transport.HELO, payload);
-        System.out.println("HELO sent");
+    public boolean isNew() {
+        return (sslState == SSLState.NEW);
+    }
+    public boolean isHelo() {
+        return (sslState == SSLState.HELO);
+    }
+    public boolean isCert() {
+        return (sslState == SSLState.CERT);
+    }
+    public boolean isS_Done() {
+        return (sslState == SSLState.S_DONE);
+    }
+    public boolean isC_Keyx() {
+        return (sslState == SSLState.C_KEYX);
+    }
+    public boolean isFinished() {
+        return (sslState == SSLState.FINISHED);
+    }
+    public boolean isDone() {
+        return (sslState == SSLState.DONE);
     }
 
-    public void parseHelo(byte[] pay){
-        String helo = new String(pay, StandardCharsets.UTF_8);
-        String delims = "[,]";
-        String[] tokens = helo.split(delims);
-        ver = tokens[0];
-        cipher = tokens[1];
-        sessID = Integer.parseInt(tokens[2]);
-        int rand = Integer.parseInt(tokens[3]);
-        if (sock.isServer == true){
-            System.out.printf("%s", "From Server: ");
-            rand_c = rand;
-        }else{
-            System.out.printf("%s", "From Client: ");
-            rand_s = rand;
-        }
-        System.out.println("HELO received and parsed");        
+    public void setNew() {
+        sslState = SSLState.NEW;
+    }
+    public void setHelo() {
+        sock.state = TCPSock.State.HANDSHAKE;
+        sslState = SSLState.HELO;
+        System.out.println("set HELO, set HANDSHAKE");
+    }
+    public void setCert() {
+        sslState = SSLState.CERT;
+    }
+    public void setS_Done() {
+        sslState = SSLState.S_DONE;
+    }
+    public void setC_Keyx() {
+        sslState = SSLState.C_KEYX;
+    }
+    public void setFinished() {
+        sslState = SSLState.FINISHED;
+    }
+    public void setDone() {
+        sslState = SSLState.DONE;
     }
 
-    /*Return: 0 if 
-        TLS/SSL handshake unsuccessful but was shut down controlled and by the specifications of the TLS/SSL protocol. 
-        Call SSL_get_error() with the return value ret to find out the reason.
-        1 if handshake was successful, connection established
-        < 0 if handshake unsuccessful bc fatal error. Again call SSL_get_error()
-        > 1 if call me again, maybe
-    */
+//////////      INITIALIZATIONS            //////////////
 
     // initialize version and cipher for clients only
     public void ssl_client_init() {
@@ -159,8 +165,9 @@ public class SSLlib{
             KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance(algorithm);
             keyPairGenerator.initialize(1024);
             KeyPair keyPair = keyPairGenerator.genKeyPair();
-            PrivateKey privKey = keyPair.getPrivate();
-            PublicKey pubKey = keyPair.getPublic();
+            privKey = keyPair.getPrivate();
+            pubKey = keyPair.getPublic();
+
         } catch (Exception ex) {
             ex.printStackTrace();
         }
@@ -189,6 +196,8 @@ public class SSLlib{
 
     }
 
+//////////      MAJOR FUNCTIONS         //////////////
+
     public int ssl_accept(){
         // SERVER STATES ARE FOR THOSE MESSAGES IT HAS RECEIVED !!!!!!!!
         System.out.println("ssl_accept has been called");
@@ -208,7 +217,7 @@ public class SSLlib{
             sendCert();
             sendS_done();
             sslState = SSLState.HELO;
-            return 2;
+            return -1;      //DEBUG CHANGE BACK !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
         }
         else if (sslState == SSLState.HELO) {
@@ -229,6 +238,7 @@ public class SSLlib{
         }
         else {
             //error
+            System.out.println("accept error");
         }
     
         return 0;
@@ -238,6 +248,8 @@ public class SSLlib{
     public int ssl_connect(){
         // CLIENT STATES ARE FOR THOSE MESSAGES IT IS EXPECTING !!!!!!!!
 
+        System.out.println("ssl_connect has been called");
+
         if(die) {
             return -1;
         }
@@ -245,8 +257,8 @@ public class SSLlib{
         if(sock.state == TCPSock.State.ESTABLISHED) {
             sock.state = TCPSock.State.HANDSHAKE;
             System.out.println("Client sock state == HANDSHAKE");
-            //send HELO
             sendHelo();
+            sslState = SSLState.HELO;
             return 2;
 
         } 
@@ -262,7 +274,7 @@ public class SSLlib{
         else if (sslState == SSLState.S_DONE) {
             // tcpman called something to deal with cert
             System.out.println("Client state == S_DONE");
-            return 2;
+            return -1;      //DEBUG CHANGE THIS!!!!!!!!!!!!!!!!!!!!!!!
 
         }
         else if (sslState == SSLState.FINISHED) {
@@ -272,6 +284,7 @@ public class SSLlib{
         }
         else if (sslState == SSLState.DONE) {
             System.out.println("Client state == DONE");
+            sock.state = TCPSock.State.ESTABLISHED;
             return 1;
             
         }
@@ -282,57 +295,6 @@ public class SSLlib{
 
 
         return 0;
-    }
-
-    public boolean isNew() {
-        return (sslState == SSLState.NEW);
-    }
-    public boolean isHelo() {
-        return (sslState == SSLState.HELO);
-    }
-    public boolean isCert() {
-        return (sslState == SSLState.CERT);
-    }
-    public boolean isS_Done() {
-        return (sslState == SSLState.S_DONE);
-    }
-    public boolean isC_Keyx() {
-        return (sslState == SSLState.C_KEYX);
-    }
-    public boolean isFinished() {
-        return (sslState == SSLState.FINISHED);
-    }
-    public boolean isDone() {
-        return (sslState == SSLState.DONE);
-    }
-
-    public void setHandshake() {
-        sock.state = TCPSock.State.HANDSHAKE;
-        System.out.println("sock state set to HANDSHAKE");
-    }
-
-    public void setNew() {
-        sslState = SSLState.NEW;
-    }
-    public void setHelo() {
-        sock.state = TCPSock.State.HANDSHAKE;
-        sslState = SSLState.HELO;
-        System.out.println("state set to HELO");
-    }
-    public void setCert() {
-        sslState = SSLState.CERT;
-    }
-    public void setS_Done() {
-        sslState = SSLState.S_DONE;
-    }
-    public void setC_Keyx() {
-        sslState = SSLState.C_KEYX;
-    }
-    public void setFinished() {
-        sslState = SSLState.FINISHED;
-    }
-    public void setDone() {
-        sslState = SSLState.DONE;
     }
 
     // FUNCTIONS TO MAKE
@@ -359,6 +321,150 @@ public class SSLlib{
             -1 shutdown unsuccessful bc of fatal error/other bad things*/
     public int ssl_shutdown(){
         return 0;
+    }
+
+//////////      HELPER FUNCTIONS        //////////////
+
+    public void sendHelo(){
+
+        String helo = "";
+        if (sock.isServer == true){
+            System.out.println("Server:");
+            rand_s = gen.nextInt(); //may have problems if sendHelo is called multiple times
+            helo = String.format("%s,%s,%d,%d", ver, cipher, sessID, rand_s);
+        } else {
+            System.out.println("Client:");
+            rand_c = gen.nextInt();
+            helo = String.format("%s,%s,%d,%d", ver, cipher, sessID, rand_c);
+        }
+        byte[] payload = helo.getBytes(StandardCharsets.UTF_8); 
+        sslSendPacket(Transport.HELO, payload);
+        System.out.println("HELO sent");
+    }
+
+    public void parseHelo(byte[] pay){
+        String helo = new String(pay, StandardCharsets.UTF_8);
+        String delims = "[,]";
+        String[] tokens = helo.split(delims);
+        ver = tokens[0];
+        cipher = tokens[1];
+        sessID = Integer.parseInt(tokens[2]);
+        int rand = Integer.parseInt(tokens[3]);
+        if (sock.isServer == true){
+            rand_c = rand;
+        }else{
+            rand_s = rand;
+        }
+
+        System.out.println("HELO received and parsed");        
+    }
+
+
+    public void sendCert() {
+
+        //write the certificate signing request
+        String cert = "";
+        try {
+            String pubKeyString = Base64.getEncoder().encodeToString(pubKey.getEncoded());
+            cert = String.format("-----BEGIN CERTIFICATE-----%s,%s,%s,%sEND MESSAGE", domain, organization, country, pubKeyString);
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+
+        //simulate certifying authority: 
+        // (adapted from http://stackoverflow.com/questions/11410770/load-rsa-public-key-from-file)
+            //sign cert with SHA2 hash and key
+            String signature = "";
+            try {
+                Signature sign = Signature.getInstance("SHA1withRSA");
+                sign.initSign(caPrivateKey);
+                sign.update(cert.getBytes("UTF-8"));
+                signature = Base64.getEncoder().encodeToString(sign.sign());
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        System.out.println(signature);
+
+        //pack message, signature into byte array payload
+        String payloadString = cert + signature + "-----END CERTIFICATE-----";
+        byte[] payload = payloadString.getBytes();
+        sslSendPacket(Transport.CERT, payload);
+        System.out.println("CERT sent");
+
+    }
+
+
+    public boolean parseCert(byte[] payload) {
+
+        //add payload to certSoFar
+        try {
+            String payloadString = new String(payload, "UTF-8");
+            if(payloadString.startsWith("-----BEGIN CERTIFICATE-----")) {
+                isCertDone = false;
+                payloadString = payloadString.replace("-----BEGIN CERTIFICATE-----", "");
+            } if(payloadString.endsWith("-----END CERTIFICATE-----")) {
+                isCertDone = true;
+                payloadString = payloadString.replace("-----END CERTIFICATE-----", "");
+            }
+            certSoFar = certSoFar + payloadString;
+            if(!isCertDone) {
+                return true;
+            } 
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+
+
+        System.out.println("parsing cert");
+        //parse string into message and signature
+        String[] certParse = certSoFar.split("END MESSAGE");
+        String message = certParse[0];
+        String[] messageParse = message.split(",", 4);
+        String signature = certParse[1];
+
+        System.out.println(certParse[0]);
+        System.out.println(messageParse[0]);
+        System.out.println(messageParse[1]);
+        System.out.println(messageParse[2]);
+        System.out.println(messageParse[3]);
+
+        if(!messageParse[0].equals(domain)) {
+            System.out.println("Error: SSL domain does not match");
+            return false;
+        }
+
+        if(!signatureComp.equals(signature)) {
+            System.out.println("SIGNATURES NOT EQUAL");
+        }
+
+        //verify signed message
+        try {
+            Signature sign = Signature.getInstance("SHA1withRSA");
+            sign.initVerify(caPublicKey);
+            sign.update(("-----BEGIN CERTIFICATE-----" + message + "END MESSAGE").getBytes("UTF-8"));
+            if(!sign.verify(Base64.getDecoder().decode(signature.getBytes("UTF-8")))) {
+                System.out.println("Error: Could not verify SSL certificate");
+                return false;
+            }
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+
+        //save server's public key from the cert
+        try {
+            byte[] pubKeyBytes = messageParse[3].getBytes("UTF-8");
+            X509EncodedKeySpec spec =
+              new X509EncodedKeySpec(pubKeyBytes);
+            KeyFactory kf = KeyFactory.getInstance("RSA");
+            PublicKey pubKey = kf.generatePublic(spec);
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+        System.out.println("CERT parsed and received");
+
+        return true;
+
+
     }
 	
 	// only called if is client
@@ -404,125 +510,11 @@ public class SSLlib{
 
 		return 1;
 	}
-	
-	// make packet times which are then sent 
-	public int sslSendPacket(int type, byte[] payload) {
-		
-		int count = 0; // index of first byte to be written
-		int len = payload.length;
-		
-		while (count < len) {
-			
-			int toWrite = Math.min((len - count), Transport.MAX_PAYLOAD_SIZE);
-			byte[] bufWrite = Arrays.copyOfRange(payload, count, count + toWrite);
-			Transport t;
-			try {
-				t = new Transport(sock.localPort, sock.destPort, type, sock.windowSize, sock.seqNum, bufWrite);
-				
-			} catch (Exception e) {
-				System.out.println("Error caught: ");
-                e.printStackTrace();
-				return -1; // error
-			}
-			
-			if (t != null) {
-				PacketTime pt = new PacketTime(t, tcpMan.getMan().now());
-				count += toWrite;
-				tcpMan.sendPkt(sock.destAddr, pt, sock, sock.seqNum);
-			}
-		}
-		return 1; // success
-	}
-
-    public void sendCert() {
-
-        //write the certificate signing request
-        String cert = "";
-        try {
-            String pubKeyString = new String(pubKey.getEncoded(), "UTF-8");
-            cert = String.format("-----BEGIN CERTIFICATE-----%s, %s, %s, %s,", domain, organization, country, pubKeyString);
-        } catch (Exception ex) {
-            ex.printStackTrace();
-        }
-
-        //simulate certifying authority: 
-        // (adapted from http://stackoverflow.com/questions/11410770/load-rsa-public-key-from-file)
-            //sign cert with SHA2 hash and key
-            String signature = "";
-            try {
-                Signature sign = Signature.getInstance("SHA2withRSA");
-                sign.initSign(caPrivateKey);
-                sign.update(cert.getBytes("UTF-8"));
-                signature = new String(sign.sign(), "UTF-8");
-            } catch (Exception ex) {
-                ex.printStackTrace();
-            }
-
-        //pack message, signature into byte array payload
-        String payloadString = cert + signature + "-----END CERTIFICATE-----";
-        byte[] payload = payloadString.getBytes();
-        sslSendPacket(Transport.CERT, payload);
-        System.out.println("CERT sent");
-    }
-
-    public boolean parseCert(byte[] payload) {
-        
-        //add payload to certSoFar
-        String payloadString = new String(payload);
-        if(payloadString.startsWith("-----BEGIN CERTIFICATE-----")) {
-            isCertDone = false;
-            payloadString = payloadString.replace("-----BEGIN CERTIFICATE-----", "");
-        } if(payloadString.endsWith("-----END CERTIFICATE-----")) {
-            isCertDone = true;
-            payloadString = payloadString.replace("-----END CERTIFICATE-----", "");
-        }
-        certSoFar = certSoFar + payloadString;
-        if(!isCertDone) {
-            return true;
-        }
-
-        //parse string into message and signature
-        String[] certParse = certSoFar.split(",", 5);
-        String message = certParse[0] + certParse[1] + certParse[2] + certParse[3];
-        String signature = certParse[4];
-        if(!certParse[0].equals(domain)) {
-            System.out.println("Error: SSL domain does not match");
-            return false;
-        }
-
-        //verify signed message
-        try {
-            Signature sign = Signature.getInstance("SHA1withRSA");
-            sign.initVerify(caPublicKey);
-            sign.update(message.getBytes("UTF-8"));
-            if(!sign.verify(signature.getBytes("UTF-8"))) {
-                System.out.println("Error: Could not verify SSL certificate");
-                return false;
-            }
-        } catch (Exception ex) {
-            ex.printStackTrace();
-        }
-
-        //save server's public key from the cert
-        try {
-            byte[] pubKeyBytes = certParse[3].getBytes("UTF-8");
-            X509EncodedKeySpec spec =
-              new X509EncodedKeySpec(pubKeyBytes);
-            KeyFactory kf = KeyFactory.getInstance("RSA");
-            PublicKey pubKey = kf.generatePublic(spec);
-        } catch (Exception ex) {
-            ex.printStackTrace();
-        }
-        System.out.println("CERT parsed and received");
-
-        return true;
-
-
-    }
 
     public void sendS_done() {
         byte[] empty = new byte[0];
         sslSendPacket(Transport.S_DONE, empty);
+        System.out.println("S_done sent");
     }
 
     public void sendFinished() {
@@ -572,5 +564,33 @@ public class SSLlib{
         return -1;
     }
 
+        // make packet times which are then sent 
+    public int sslSendPacket(int type, byte[] payload) {
+        
+        int count = 0; // index of first byte to be written
+        int len = payload.length;
+        
+        while (count < len) {
+            
+            int toWrite = Math.min((len - count), Transport.MAX_PAYLOAD_SIZE);
+            byte[] bufWrite = Arrays.copyOfRange(payload, count, count + toWrite);
+            Transport t;
+            try {
+                t = new Transport(sock.localPort, sock.destPort, type, sock.windowSize, sock.seqNum, bufWrite);
+                
+            } catch (Exception e) {
+                System.out.println("Error caught: ");
+                e.printStackTrace();
+                return -1; // error
+            }
+            
+            if (t != null) {
+                PacketTime pt = new PacketTime(t, tcpMan.getMan().now());
+                count += toWrite;
+                tcpMan.sendPkt(sock.destAddr, pt, sock, sock.seqNum);
+            }
+        }
+        return 1; // success
+    }
 
 }
