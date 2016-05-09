@@ -30,7 +30,7 @@ public class SSLlib{
     private Random gen = null;
     private PublicKey pubKey = null;
     private PrivateKey privKey = null;
-
+	private byte[] pms = null;
     private SecretKey symKey = null;     
 
     private PublicKey caPublicKey = null;
@@ -465,9 +465,29 @@ public class SSLlib{
 	public int sendKey() {
 
 		try {
+			// create Pre-Master Secret - 48 random bytes, with padding to fill modulus of 128 bytes
+			SecureRandom secRand = new SecureRandom();
+			pms = new byte[48];
+			secRand.nextBytes(pms);
+			byte[] padding = new byte[57];
+			secRand.nextBytes(padding);
+			byte[] pmsPacket = new byte[105];
+			System.arraycopy(pms, 0, pmsPacket, 0, 48);
+			System.arraycopy(padding, 0, pmsPacket, 48, 57);
+			
+			// encrypt Pre-Master Secret with server's public key
+			Cipher c = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+			c.init(Cipher.ENCRYPT_MODE, pubKey);
+			byte[] pmsEncrypted = c.doFinal(pmsPacket);
+			
+			// send Pre-Master Secret 
+			sslSendPacket(Transport.C_KEYX, pmsEncrypted);
+			
+			genSymKey();
+			
 			// create symmetric key -- SIMPLIFIED FOR NOW
-			KeyGenerator keyGen = KeyGenerator.getInstance("AES");
-			keyGen.init(80);	// to be really secure, should be 112~~~!!! 
+			/*KeyGenerator keyGen = KeyGenerator.getInstance("AES");
+			keyGen.init(128);	// to be really secure, should be 112~~~!!! 
                                     //also work with padding once we have PMS and stuff
 			symKey = keyGen.generateKey();
 			
@@ -475,7 +495,7 @@ public class SSLlib{
 			Cipher c = Cipher.getInstance("RSA/ECB/PKCS1Padding");
 			c.init(Cipher.ENCRYPT_MODE, pubKey);
 			byte[] symEncrypted = c.doFinal(symKey.getEncoded());
-			sslSendPacket(Transport.C_KEYX, symEncrypted);
+			sslSendPacket(Transport.C_KEYX, symEncrypted); */
 			
 		} catch (Exception e) {
 			System.out.println("Error caught in sendKey: ");
@@ -488,16 +508,16 @@ public class SSLlib{
 	public int parseKey(byte[] pay) {
 
 		try {
-			// decrypt pms with private key (RSA)
+			// decrypt pms with private key (RSA), remove padding
 			Cipher c = Cipher.getInstance("RSA/ECB/PKCS1Padding");
 			c.init(Cipher.DECRYPT_MODE, privKey);
-			byte[] symKeyBytes = c.doFinal(pay);
+			byte[] pmsPacket = c.doFinal(pay);
+			pms = new byte[48];
+			System.arraycopy(pmsPacket, 0, pms, 0, 48);
 			
-			// turn byte[] into SecretKey
-			symKey = new SecretKeySpec(symKeyBytes, "AES");
+			// turn byte[] into symmetric key by method
+			genSymKey();
 			
-			// after this, generate symmetric key w/PMS & rand_s and rand_c
-			// return success or failure
 		} catch (Exception e) {
 			System.out.println("Error caught in parseKey: ");
             e.printStackTrace();
@@ -505,6 +525,66 @@ public class SSLlib{
 
 		return 1;
 	}
+	
+	// generate symmetric key from Pre-Master Secret, rand_c, rand_s
+	// split Pre-Master Secret into half, use one half with HMAC-SHA1 and other half
+	// with HMAC-MD5 in combination with rand_c and rand_s
+	public void genSymKey() {
+		
+		byte[] pmsFirst = new byte[24];
+			System.arraycopy(pms, 0, pmsFirst, 0, 24);
+			byte[] pmsSecond = new byte[24];
+			System.arraycopy(pms, 0, pmsSecond, 0, 24);
+			
+			byte[] seed = new byte[64];
+			System.arraycopy(rand_c, 0, seed, 0, 32);
+			System.arraycopy(rand_s, 0, seed, 32, 64);
+			
+			Mac sha1_HMAC = Mac.getInstance("HmacSHA1");
+			SecretKeySpec pmsKey1 = new SecretKeySpec(pmsFirst, "HmacSHA1");
+			sha1_HMAC.init(pmsKey1);
+			
+			Mac md5_HMAC = Mac.getInstance("HmacMD5");
+			SecretKeySpec pmsKey2 = new SecretKeySpec(pmsSecond, "HmacMD5");
+			md5_HMAC.init(pmsKey2);
+			
+			byte[] p_hash1 = sha1_HMAC.doFinal(seed);
+			while(p_hash1.length < 48) {
+				
+				byte[] newseed = byte[64 + p_hash1.length];
+				System.arraycopy(p_hash1, 0, newseed, 0, p_hash1.length);
+				System.arraycopy(seed, 0, newseed, p_hash1.length, 64);
+				//seed1 = newseed;
+				p_hash1 = sha1_HMAC.doFinal(newseed);
+				
+			}
+			
+			byte[] p_hash2 = md5_HMAC.doFinal(seed);
+			while(p_hash2.length < 48) {
+				
+				byte[] newseed = byte[64 + p_hash2.length];
+				System.arraycopy(p_hash2, 0, newseed, 0, p_hash2.length);
+				System.arraycopy(seed, 0, newseed, p_hash2.length, p_hash2.length + 64);
+				//seed1 = newseed;
+				p_hash2 = md5_HMAC.doFinal(newseed);
+				
+			}
+			
+			byte[] finalp1 = byte[48];
+			System.arraycopy(p_hash1, 0, finalp1, 0, 48);
+			byte[] finalp2 = byte[48];
+			System.arraycopy(p_hash2, 0, finalp2, 0, 48);
+			byte[] symKeyb = new byte[48];
+			
+			for (int i = 0; i < 48; i++) {
+				symKeyb[i] = finalp1[i] ^ finalp2[i];
+			}
+			
+			symKey = SecretKeySpec(symKeyb, 0, 48, "AES");
+			
+	}
+	
+	
 
     public void sendS_done() {
         byte[] empty = new byte[0];
