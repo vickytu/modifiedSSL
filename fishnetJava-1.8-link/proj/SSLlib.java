@@ -120,7 +120,7 @@ public class SSLlib{
 
 //////////      INITIALIZATIONS            //////////////
 
-    // initialize version and cipher for clients only
+    // initialization for clients only
     public void ssl_client_init() {
         //gen (rand)
         ver = "1";
@@ -152,6 +152,7 @@ public class SSLlib{
 
     }
 
+    //initialization for servers only
     public void ssl_server_init() {
 
         sock.isServer = true;
@@ -199,6 +200,11 @@ public class SSLlib{
 
 //////////      MAJOR FUNCTIONS         //////////////
 
+
+    // server side: accept an SSL connection on top of current TCP connection
+    // returns < 1 on fatal SSL error
+    // returns 1 on success
+    // returns > 1 if handshake is still incomplete 
     public int ssl_accept(){
         // SERVER STATES ARE FOR THOSE MESSAGES IT HAS RECEIVED !!!!!!!!
         System.out.println("ssl_accept has been called");
@@ -245,7 +251,10 @@ public class SSLlib{
         return 0;
     }
 
-    /*Return: same as ssl_accept*/
+    // client side: initiate an SSL connection on top of current TCP connection
+    // returns < 1 on fatal SSL error
+    // returns 1 on success
+    // returns > 1 if handshake is still incomplete    
     public int ssl_connect(){
         // CLIENT STATES ARE FOR THOSE MESSAGES IT IS EXPECTING !!!!!!!!
 
@@ -301,7 +310,7 @@ public class SSLlib{
     // FUNCTIONS TO MAKE
 
     /*Signature: int ssl_read(SSL *ssl, void *buf, int num)
-            Return:  >0 if successful, w/number of bytes read
+            Return:  > 0 if successful, w/number of bytes read
            0 if unsuccessful, but clean (maybe have been shutdown)
            <0 if unsuccessful, but needs action, some sort of error*/
     public int ssl_read(byte[] buf, int pos, int len){
@@ -319,13 +328,14 @@ public class SSLlib{
     /*Signature: int ssl_shutdown(SSL *ssl)
             Return: 0 shutdown not yet finished, call shutdown again if want a bidirectional shutdown
             1 shutdown successfully completed
-            -1 shutdown unsuccessful bc of fatal error/other bad things*/
+            -1 shutdown unsuccessful due to fatal error*/
     public int ssl_shutdown(){
         return 0;
     }
 
 //////////      HELPER FUNCTIONS        //////////////
 
+    // write a HELO transport and send it out
     public void sendHelo(){
 
         String helo = "";
@@ -343,6 +353,7 @@ public class SSLlib{
         System.out.println("HELO sent");
     }
 
+    // parse through a received HELO transport, saving relevant fields
     public void parseHelo(byte[] pay){
         String helo = new String(pay, StandardCharsets.UTF_8);
         String delims = "[,]";
@@ -360,7 +371,7 @@ public class SSLlib{
         System.out.println("HELO received and parsed");        
     }
 
-
+    // write and sign a certificate into a CERT transport and send it out
     public void sendCert() {
 
         //write the certificate signing request
@@ -396,6 +407,8 @@ public class SSLlib{
     }
 
 
+    // parse through a received certificate, checking valid signature and correct domain name
+    // save the enclosed public key
     public boolean parseCert(byte[] payload) {
 
         //add payload to certSoFar
@@ -460,8 +473,16 @@ public class SSLlib{
 
 
     }
+
+    // send an S_DONE transport
+    public void sendS_done() {
+        byte[] dummy = new byte[1];
+        sslSendPacket(Transport.S_DONE, dummy);
+        System.out.println("S_done sent");
+    }
 	
-	// only called if is client
+	// generate a symmetric key as specified in RFC2246, p11-12
+    // send key in C_KEYX transport
 	public int sendKey() {
 
 		try {
@@ -485,6 +506,7 @@ public class SSLlib{
 		return 1;
 	}
 	
+    // parse through a received C_KEYX transport, saving key
 	public int parseKey(byte[] pay) {
 
 		try {
@@ -506,12 +528,7 @@ public class SSLlib{
 		return 1;
 	}
 
-    public void sendS_done() {
-        byte[] dummy = new byte[1];
-        sslSendPacket(Transport.S_DONE, dummy);
-        System.out.println("S_done sent");
-    }
-
+    // send a digest of the handshake transaction in a FINISHED transport
     public void sendFinished() {
         //send the digest of messages sender has sent
         String finished = "";
@@ -534,7 +551,7 @@ public class SSLlib{
         }
     }
 
-    //return 0 on success, -1 if fail
+    // parse through a received digest, verifying that it matches the local version of the transaction
     public int parseFinished(byte[] payload) {
         //receive the digest
         String finished = "";
@@ -567,8 +584,7 @@ public class SSLlib{
         int len = payload.length;
         
         while (count < len) {
-        System.out.printf("###################################################################### SENDING A %d\n", type);
-            
+
             int toWrite = Math.min((len - count), Transport.MAX_PAYLOAD_SIZE);
             byte[] bufWrite = Arrays.copyOfRange(payload, count, count + toWrite);
             Transport t;
