@@ -20,6 +20,7 @@ import java.nio.charset.StandardCharsets;
 import javax.crypto.*;
 import javax.crypto.spec.*;
 import java.util.Base64.*;
+import java.nio.charset.StandardCharsets;
 
 
 public class SSLlib{
@@ -31,7 +32,8 @@ public class SSLlib{
     private PublicKey pubKey = null;
     private PrivateKey privKey = null;
 	private byte[] pms = null;
-    private SecretKey symKey = null;     
+    private SecretKeySpec symKey = null;  
+    private Cipher masterCipher = null;   
 
     private PublicKey caPublicKey = null;
     private PrivateKey caPrivateKey = null;
@@ -51,6 +53,9 @@ public class SSLlib{
 
     public boolean isCertDone;
     private String certSoFar = "";
+    private boolean isKeyDone = false;
+    private byte[] keyPay;
+
 
     enum SSLState {
         // protocol states, all of these are after the action has been done, so HELO = HELO_SENT
@@ -345,45 +350,61 @@ public class SSLlib{
     // write a HELO transport and send it out
     public void sendHelo(){
 
-        String helo = "";
-        String str = "";
-        if (sock.isServer == true){
-            System.out.println("Server:");
-            rand_s = new byte[32];
-            gen.nextBytes(rand_s);
-            //rand_s = gen.nextInt(); //may have problems if sendHelo is called multiple times
-            str = new String(rand_s, StandardCharsets.UTF_8);
-            helo = String.format("%s,%s,%d,%s", ver, cipher, sessID, rand_s);
-        } else {
-            System.out.println("Client:");
-            rand_c = new byte[32];
-            gen.nextBytes(rand_c);
-            //rand_c = gen.nextInt();//may have problems if sendHelo is called multiple times
-            str = new String(rand_c, StandardCharsets.UTF_8);
-            helo = String.format("%s,%s,%d,%s", ver, cipher, sessID, rand_c);
+        try{
+            String helo = String.format("%s,%s,%d", ver, cipher, sessID);;
+            //String str = "";
+            byte[] rand;
+            if (sock.isServer == true){
+                System.out.println("Server:");
+                rand_s = new byte[32];
+                gen.nextBytes(rand_s);
+                rand = rand_s;
+                //rand_s = gen.nextInt(); //may have problems if sendHelo is called multiple times
+                //str = new String(rand_s, "StandardCharsets.US_ASCII");
+                //str = Base64.getEncoder().encodeToString(rand_s);
+            } else {
+                System.out.println("Client:");
+                rand_c = new byte[32];
+                gen.nextBytes(rand_c);
+                rand = rand_c;
+                //rand_c = gen.nextInt();//may have problems if sendHelo is called multiple times
+                //str = Base64.getEncoder().encodeToString(rand_c);
+            }
+            byte[] helo1 = helo.getBytes("UTF-8"); 
+            byte[] payload = new byte[32 + helo1.length];
+            System.arraycopy(rand, 0, payload, 0, 32);
+            System.arraycopy(helo1, 0, payload, 32, helo1.length);
+            sslSendPacket(Transport.HELO, payload);
+            System.out.println("HELO sent");
+        }catch(Exception ex){
+            ex.printStackTrace();
         }
-        byte[] payload = helo.getBytes(StandardCharsets.UTF_8); 
-        sslSendPacket(Transport.HELO, payload);
-        System.out.println("HELO sent");
     }
 
     // parse through a received HELO transport, saving relevant fields
     public void parseHelo(byte[] pay){
-        String helo = new String(pay, StandardCharsets.UTF_8);
-        String delims = "[,]";
-        String[] tokens = helo.split(delims);
-        ver = tokens[0];
-        cipher = tokens[1];
-        sessID = Integer.parseInt(tokens[2]);
-        //int rand = Integer.parseInt(tokens[3]);
-        byte[] rand = tokens[3].getBytes(StandardCharsets.UTF_8);
-        if (sock.isServer == true){
-            rand_c = rand;
-        }else{
-            rand_s = rand;
-        }
+        try{
+            byte[] rand = Arrays.copyOfRange(pay, 0, 32);
+            byte[] payload = Arrays.copyOfRange(pay, 32, pay.length);
+            String helo = new String(payload, "UTF-8");
+            String delims = "[,]";
+            String[] tokens = helo.split(delims);
+            ver = tokens[0];
+            cipher = tokens[1];
+            sessID = Integer.parseInt(tokens[2]);
+            //int rand = Integer.parseInt(tokens[3]);
+            //byte[] rand = Base64.getDecoder().decode(tokens[3]);
+            System.out.printf("length: %d", rand.length);
+            if (sock.isServer == true){
+                rand_c = rand;
+            }else{
+                rand_s = rand;
+            }
 
-        System.out.println("HELO received and parsed");        
+            System.out.println("HELO received and parsed");
+        }catch(Exception ex){
+            ex.printStackTrace();
+        }        
     }
 
     // write and sign a certificate into a CERT transport and send it out
@@ -499,7 +520,7 @@ public class SSLlib{
 	// generate a symmetric key as specified in RFC2246, p11-12
     // send key in C_KEYX transport
 	public int sendKey() {
-
+        System.out.println("sending key");
 		try {
 			// create Pre-Master Secret - 48 random bytes, with padding to fill modulus of 128 bytes
 			SecureRandom secRand = new SecureRandom();
@@ -518,9 +539,10 @@ public class SSLlib{
 			
 			// send Pre-Master Secret 
 			sslSendPacket(Transport.C_KEYX, pmsEncrypted);
+            System.out.println("sent key");
 			
 			genSymKey();
-			
+            System.out.println("done generating key");
 			// create symmetric key -- SIMPLIFIED FOR NOW
 			/* KeyGenerator keyGen = KeyGenerator.getInstance("AES");
 
@@ -547,15 +569,24 @@ public class SSLlib{
 	public int parseKey(byte[] pay) {
 
 		try {
-			// decrypt pms with private key (RSA), remove padding
-			Cipher c = Cipher.getInstance("RSA/ECB/PKCS1Padding");
-			c.init(Cipher.DECRYPT_MODE, privKey);
-			byte[] pmsPacket = c.doFinal(pay);
-			pms = new byte[48];
-			System.arraycopy(pmsPacket, 0, pms, 0, 48);
-			
-			// turn byte[] into symmetric key by method
-			genSymKey();
+
+            if (keyPay == null) {
+                keyPay = new byte[128];
+                System.arraycopy(pay, 0, keyPay, 0, pay.length);
+            }
+            else {
+                System.arraycopy(pay, 0, keyPay, 105, pay.length);
+    			// decrypt pms with private key (RSA), remove padding
+    			Cipher c = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+    			c.init(Cipher.DECRYPT_MODE, privKey);
+    			byte[] pmsPacket = c.doFinal(keyPay);
+    			pms = new byte[48];
+    			System.arraycopy(pmsPacket, 0, pms, 0, 48);
+                isKeyDone = true;
+    			
+    			// turn byte[] into symmetric key by method
+    			genSymKey();
+            }
 			
 		} catch (Exception e) {
 			System.out.println("Error caught in parseKey: ");
@@ -570,6 +601,7 @@ public class SSLlib{
 	// split Pre-Master Secret into half, use one half with HMAC-SHA1 and other half
 	// with HMAC-MD5 in combination with rand_c and rand_s
 	public void genSymKey() {
+        System.out.println("in genSymKey");
 		
 		try {
 			byte[] pmsFirst = new byte[24];
@@ -589,25 +621,48 @@ public class SSLlib{
 			SecretKeySpec pmsKey2 = new SecretKeySpec(pmsSecond, "HmacMD5");
 			md5_HMAC.init(pmsKey2);
 			
-			byte[] p_hash1 = sha1_HMAC.doFinal(seed);
+			byte[] p_hash1prep = sha1_HMAC.doFinal(seed);
+            byte[] p_hash1 = new byte[p_hash1prep.length];
+            System.arraycopy(p_hash1prep, 0, p_hash1, 0, p_hash1prep.length);
+
+            System.out.println("p_hash length: " + p_hash1.length);
 			while(p_hash1.length < 48) {
-				
+				System.out.println("p_hash length: " + p_hash1.length);
 				byte[] newseed = new byte[64 + p_hash1.length];
 				System.arraycopy(p_hash1, 0, newseed, 0, p_hash1.length);
 				System.arraycopy(seed, 0, newseed, p_hash1.length, 64);
 				//seed1 = newseed;
-				p_hash1 = sha1_HMAC.doFinal(newseed);
+				p_hash1prep = sha1_HMAC.doFinal(newseed);
+                byte[] p_hashnew = new byte[p_hash1.length + p_hash1prep.length];
+                System.arraycopy(p_hash1, 0, p_hashnew, 0, p_hash1.length);
+                System.arraycopy(p_hash1prep, 0, p_hashnew, p_hash1.length, p_hash1prep.length);
+                p_hash1 = p_hashnew;
 				
 			}
 			
-			byte[] p_hash2 = md5_HMAC.doFinal(seed);
+			byte[] p_hash2prep = md5_HMAC.doFinal(seed);
+            byte[] p_hash2 = new byte[p_hash2prep.length];
+            System.arraycopy(p_hash2prep, 0, p_hash2, 0, p_hash2prep.length);
 			while(p_hash2.length < 48) {
+
+                System.out.println("p_hash length: " + p_hash2.length);
+                byte[] newseed = new byte[64 + p_hash2.length];
+                System.arraycopy(p_hash2, 0, newseed, 0, p_hash2.length);
+                System.arraycopy(seed, 0, newseed, p_hash2.length, 64);
+                //seed1 = newseed;
+                p_hash2prep = md5_HMAC.doFinal(newseed);
+                byte[] p_hashnew = new byte[p_hash2.length + p_hash2prep.length];
+                System.arraycopy(p_hash2, 0, p_hashnew, 0, p_hash2.length);
+                System.arraycopy(p_hash2prep, 0, p_hashnew, p_hash2.length, p_hash2prep.length);
+                p_hash2 = p_hashnew;
+
+                /*System.out.println("stuck in second while loop");
 				
 				byte[] newseed = new byte[64 + p_hash2.length];
 				System.arraycopy(p_hash2, 0, newseed, 0, p_hash2.length);
 				System.arraycopy(seed, 0, newseed, p_hash2.length, p_hash2.length + 64);
 				//seed1 = newseed;
-				p_hash2 = md5_HMAC.doFinal(newseed);
+				p_hash2 = md5_HMAC.doFinal(newseed); */
 				
 			}
 			
@@ -621,7 +676,16 @@ public class SSLlib{
 				symKeyb[i] = (byte)(finalp1[i] ^ finalp2[i]);
 			}
 			
-			symKey = new SecretKeySpec(symKeyb, 0, 48, "AES");
+            System.out.println("gets to here !!!!!!");
+			symKey = new SecretKeySpec(symKeyb, 0, 48, "ARCFOUR");
+            //System.out.println("symkey: " + symKey.getEncoded().length);
+
+            masterCipher = Cipher.getInstance("ARCFOUR");
+            if (sock.isServer)
+                masterCipher.init(Cipher.DECRYPT_MODE, symKey);
+            else
+                masterCipher.init(Cipher.ENCRYPT_MODE, symKey);
+
 		}
 		catch (Exception e) {
 			System.out.println("Error caught in genSymKey: ");
