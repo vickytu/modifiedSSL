@@ -535,10 +535,11 @@ public class SSLlib{
 			System.arraycopy(padding, 0, pmsPacket, 48, 57);
 			
 			// encrypt Pre-Master Secret with server's public key
-			Cipher c = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+			Cipher c = Cipher.getInstance("RSA/ECB/NoPadding");
 			c.init(Cipher.ENCRYPT_MODE, pubKey);
 			byte[] pmsEncrypted = c.doFinal(pmsPacket);
-			
+
+			System.out.println("sent length: " + pmsEncrypted.length);
 			// send Pre-Master Secret 
 			sslSendPacket(Transport.C_KEYX, pmsEncrypted);
             System.out.println("sent key");
@@ -580,8 +581,9 @@ public class SSLlib{
             else {
                 System.arraycopy(pay, 0, keyPay, 105, pay.length);
     			// decrypt pms with private key (RSA), remove padding
-    			Cipher c = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+    			Cipher c = Cipher.getInstance("RSA/ECB/NoPadding");
     			c.init(Cipher.DECRYPT_MODE, privKey);
+                System.out.println("keyPay length: " + keyPay.length);
                 System.out.println("privkey length: " + privKey.getEncoded().length);
     			byte[] pmsPacket = c.doFinal(keyPay);
     			pms = new byte[48];
