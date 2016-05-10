@@ -174,6 +174,7 @@ public class SSLlib{
             KeyPair keyPair = keyPairGenerator.genKeyPair();
             privKey = keyPair.getPrivate();
             pubKey = keyPair.getPublic();
+            
 
         } catch (Exception ex) {
             ex.printStackTrace();
@@ -414,6 +415,7 @@ public class SSLlib{
         String cert = "";
         try {
             String pubKeyString = Base64.getEncoder().encodeToString(pubKey.getEncoded());
+            System.out.println(pubKey.getEncoded());
             cert = String.format("-----BEGIN CERTIFICATE-----%s,%s,%s,%sEND MESSAGE", 
                 domain, organization, country, pubKeyString);
         } catch (Exception ex) {
@@ -432,7 +434,6 @@ public class SSLlib{
             } catch (Exception ex) {
                 ex.printStackTrace();
             }
-        System.out.println(signature);
 
         //pack message, signature into byte array payload
         String payloadString = cert + signature + "-----END CERTIFICATE-----";
@@ -533,7 +534,7 @@ public class SSLlib{
 			System.arraycopy(padding, 0, pmsPacket, 48, 57);
 			
 			// encrypt Pre-Master Secret with server's public key
-			Cipher c = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+			Cipher c = Cipher.getInstance("RSA/ECB/NoPadding");
 			c.init(Cipher.ENCRYPT_MODE, pubKey);
 			byte[] pmsEncrypted = c.doFinal(pmsPacket);
 			
@@ -542,7 +543,6 @@ public class SSLlib{
             System.out.println("sent key");
 			
 			genSymKey();
-            System.out.println("done generating key");
 			// create symmetric key -- SIMPLIFIED FOR NOW
 			/* KeyGenerator keyGen = KeyGenerator.getInstance("AES");
 
@@ -578,15 +578,13 @@ public class SSLlib{
             else {
                 System.arraycopy(pay, 0, keyPay, 105, pay.length);
     			// decrypt pms with private key (RSA), remove padding
-    			Cipher c = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+    			Cipher c = Cipher.getInstance("RSA/ECB/NoPadding");
     			c.init(Cipher.DECRYPT_MODE, privKey);
-                System.out.println("privkey length: " + privKey.getEncoded().length);
     			byte[] pmsPacket = c.doFinal(keyPay);
     			pms = new byte[48];
     			System.arraycopy(pmsPacket, 0, pms, 0, 48);
                 isKeyDone = true;
     			
-                System.out.println("SERVER about to generate symkey");
     			// turn byte[] into symmetric key by method
     			genSymKey();
             }
@@ -628,9 +626,7 @@ public class SSLlib{
             byte[] p_hash1 = new byte[p_hash1prep.length];
             System.arraycopy(p_hash1prep, 0, p_hash1, 0, p_hash1prep.length);
 
-            System.out.println("p_hash length: " + p_hash1.length);
 			while(p_hash1.length < 16) {
-				System.out.println("p_hash length: " + p_hash1.length);
 				byte[] newseed = new byte[64 + p_hash1.length];
 				System.arraycopy(p_hash1, 0, newseed, 0, p_hash1.length);
 				System.arraycopy(seed, 0, newseed, p_hash1.length, 64);
@@ -648,7 +644,6 @@ public class SSLlib{
             System.arraycopy(p_hash2prep, 0, p_hash2, 0, p_hash2prep.length);
 			while(p_hash2.length < 16) {
 
-                System.out.println("p_hash length: " + p_hash2.length);
                 byte[] newseed = new byte[64 + p_hash2.length];
                 System.arraycopy(p_hash2, 0, newseed, 0, p_hash2.length);
                 System.arraycopy(seed, 0, newseed, p_hash2.length, 64);
@@ -679,10 +674,6 @@ public class SSLlib{
 				symKeyb[i] = (byte)(finalp1[i] ^ finalp2[i]);
 			}
 			
-            if (sock.isServer)
-                System.out.println("SERVER gets to here !!!!!!");
-            else
-                System.out.println("CLIENT gets here !!!!!!");
 			symKey = new SecretKeySpec(symKeyb, 0, 16, "ARCFOUR");
             //System.out.println("symkey: " + symKey.getEncoded().length);
 
