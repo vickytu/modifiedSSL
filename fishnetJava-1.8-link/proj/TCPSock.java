@@ -269,6 +269,8 @@ public class TCPSock {
 
             int toWrite = Math.min(Transport.MAX_PAYLOAD_SIZE, (len - count));
             byte[] bufWrite = Arrays.copyOfRange(buf, pos + count, pos + count + toWrite);
+            bufWrite = sslLib.ssl_encrypt(bufWrite);
+
             Transport t;
 
             try {

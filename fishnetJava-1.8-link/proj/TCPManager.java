@@ -217,7 +217,7 @@ public class TCPManager {
                     try {
                         // check if buffer has enough space
                         if (t.getPayload().length <= (receiver.buffer.capacity() - receiver.buffer.position())) {
-                            receiver.buffer.put(sslLib.ssl_decrypt(t.getPayload()));
+                            receiver.buffer.put(receiver.sslLib.ssl_decrypt(t.getPayload()));
                             receiver.acked += t.getPayload().length;
                             System.out.print(":");
                             int winSize = receiver.buffer.capacity() - receiver.buffer.position();
@@ -325,8 +325,9 @@ public class TCPManager {
 
         else if (type == Transport.C_KEYX){
             if (receiver.isServer && receiver.sslLib.isHelo()) {
-                receiver.sslLib.parseKey(pay);
-                receiver.sslLib.setC_Keyx();
+                System.out.println("SERVER about to parse key");
+                if (receiver.sslLib.parseKey(pay) == 1)
+                    receiver.sslLib.setC_Keyx();
             }
             else {
                 System.out.println("WhaaaT?? Redundant c_keyx ?!");

@@ -573,17 +573,20 @@ public class SSLlib{
             if (keyPay == null) {
                 keyPay = new byte[128];
                 System.arraycopy(pay, 0, keyPay, 0, pay.length);
+                return 0;
             }
             else {
                 System.arraycopy(pay, 0, keyPay, 105, pay.length);
     			// decrypt pms with private key (RSA), remove padding
     			Cipher c = Cipher.getInstance("RSA/ECB/PKCS1Padding");
     			c.init(Cipher.DECRYPT_MODE, privKey);
+                System.out.println("privkey length: " + privKey.getEncoded().length);
     			byte[] pmsPacket = c.doFinal(keyPay);
     			pms = new byte[48];
     			System.arraycopy(pmsPacket, 0, pms, 0, 48);
                 isKeyDone = true;
     			
+                System.out.println("SERVER about to generate symkey");
     			// turn byte[] into symmetric key by method
     			genSymKey();
             }
@@ -626,7 +629,7 @@ public class SSLlib{
             System.arraycopy(p_hash1prep, 0, p_hash1, 0, p_hash1prep.length);
 
             System.out.println("p_hash length: " + p_hash1.length);
-			while(p_hash1.length < 48) {
+			while(p_hash1.length < 16) {
 				System.out.println("p_hash length: " + p_hash1.length);
 				byte[] newseed = new byte[64 + p_hash1.length];
 				System.arraycopy(p_hash1, 0, newseed, 0, p_hash1.length);
@@ -643,7 +646,7 @@ public class SSLlib{
 			byte[] p_hash2prep = md5_HMAC.doFinal(seed);
             byte[] p_hash2 = new byte[p_hash2prep.length];
             System.arraycopy(p_hash2prep, 0, p_hash2, 0, p_hash2prep.length);
-			while(p_hash2.length < 48) {
+			while(p_hash2.length < 16) {
 
                 System.out.println("p_hash length: " + p_hash2.length);
                 byte[] newseed = new byte[64 + p_hash2.length];
@@ -666,18 +669,21 @@ public class SSLlib{
 				
 			}
 			
-			byte[] finalp1 = new byte[48];
-			System.arraycopy(p_hash1, 0, finalp1, 0, 48);
-			byte[] finalp2 = new byte[48];
-			System.arraycopy(p_hash2, 0, finalp2, 0, 48);
-			byte[] symKeyb = new byte[48];
+			byte[] finalp1 = new byte[16];
+			System.arraycopy(p_hash1, 0, finalp1, 0, 16);
+			byte[] finalp2 = new byte[16];
+			System.arraycopy(p_hash2, 0, finalp2, 0, 16);
+			byte[] symKeyb = new byte[16];
 			
-			for (int i = 0; i < 48; i++) {
+			for (int i = 0; i < 16; i++) {
 				symKeyb[i] = (byte)(finalp1[i] ^ finalp2[i]);
 			}
 			
-            System.out.println("gets to here !!!!!!");
-			symKey = new SecretKeySpec(symKeyb, 0, 48, "ARCFOUR");
+            if (sock.isServer)
+                System.out.println("SERVER gets to here !!!!!!");
+            else
+                System.out.println("CLIENT gets here !!!!!!");
+			symKey = new SecretKeySpec(symKeyb, 0, 16, "ARCFOUR");
             //System.out.println("symkey: " + symKey.getEncoded().length);
 
             masterCipher = Cipher.getInstance("ARCFOUR");
