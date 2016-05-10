@@ -326,8 +326,9 @@ public class TCPManager {
         else if (type == Transport.C_KEYX){
             if (receiver.isServer && receiver.sslLib.isHelo()) {
                 System.out.println("SERVER about to parse key");
-                if (receiver.sslLib.parseKey(pay) == 1)
+                if (receiver.sslLib.parseKey(pay) == 1){
                     receiver.sslLib.setC_Keyx();
+                }
             }
             else {
                 System.out.println("WhaaaT?? Redundant c_keyx ?!");

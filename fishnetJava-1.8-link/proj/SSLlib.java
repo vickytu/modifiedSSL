@@ -18,6 +18,8 @@ import java.security.*;
 import java.security.spec.*;
 import java.nio.charset.StandardCharsets;
 import javax.crypto.*;
+import javax.crypto.Cipher;
+import javax.crypto.spec.SecretKeySpec;
 import javax.crypto.spec.*;
 import java.util.Base64.*;
 import java.nio.charset.StandardCharsets;
@@ -537,7 +539,8 @@ public class SSLlib{
 			Cipher c = Cipher.getInstance("RSA/ECB/NoPadding");
 			c.init(Cipher.ENCRYPT_MODE, pubKey);
 			byte[] pmsEncrypted = c.doFinal(pmsPacket);
-			
+
+			System.out.println("sent length: " + pmsEncrypted.length);
 			// send Pre-Master Secret 
 			sslSendPacket(Transport.C_KEYX, pmsEncrypted);
             System.out.println("sent key");
@@ -580,6 +583,11 @@ public class SSLlib{
     			// decrypt pms with private key (RSA), remove padding
     			Cipher c = Cipher.getInstance("RSA/ECB/NoPadding");
     			c.init(Cipher.DECRYPT_MODE, privKey);
+<<<<<<< HEAD
+=======
+                System.out.println("keyPay length: " + keyPay.length);
+                System.out.println("privkey length: " + privKey.getEncoded().length);
+>>>>>>> de5561180ae73b19fed009182cad5bc3cbbce32f
     			byte[] pmsPacket = c.doFinal(keyPay);
     			pms = new byte[48];
     			System.arraycopy(pmsPacket, 0, pms, 0, 48);
@@ -608,7 +616,7 @@ public class SSLlib{
 			byte[] pmsFirst = new byte[24];
 			System.arraycopy(pms, 0, pmsFirst, 0, 24);
 			byte[] pmsSecond = new byte[24];
-			System.arraycopy(pms, 0, pmsSecond, 0, 24);
+			System.arraycopy(pms, 24, pmsSecond, 0, 24);
 			
 			byte[] seed = new byte[64];
 			System.arraycopy(rand_c, 0, seed, 0, 32);
@@ -642,8 +650,13 @@ public class SSLlib{
 			byte[] p_hash2prep = md5_HMAC.doFinal(seed);
             byte[] p_hash2 = new byte[p_hash2prep.length];
             System.arraycopy(p_hash2prep, 0, p_hash2, 0, p_hash2prep.length);
+
 			while(p_hash2.length < 16) {
 
+<<<<<<< HEAD
+=======
+                System.out.println("p_hash2 length: " + p_hash2.length);
+>>>>>>> de5561180ae73b19fed009182cad5bc3cbbce32f
                 byte[] newseed = new byte[64 + p_hash2.length];
                 System.arraycopy(p_hash2, 0, newseed, 0, p_hash2.length);
                 System.arraycopy(seed, 0, newseed, p_hash2.length, 64);
@@ -674,8 +687,15 @@ public class SSLlib{
 				symKeyb[i] = (byte)(finalp1[i] ^ finalp2[i]);
 			}
 			
+<<<<<<< HEAD
+=======
+
+            if (sock.isServer)
+                System.out.println("SERVER gets to here !!!!!!");
+            else
+                System.out.println("CLIENT gets here !!!!!!");
+>>>>>>> de5561180ae73b19fed009182cad5bc3cbbce32f
 			symKey = new SecretKeySpec(symKeyb, 0, 16, "ARCFOUR");
-            //System.out.println("symkey: " + symKey.getEncoded().length);
 
             masterCipher = Cipher.getInstance("ARCFOUR");
             if (sock.isServer)
@@ -695,8 +715,10 @@ public class SSLlib{
 
     // send a digest of the handshake transaction in a FINISHED transport
     public void sendFinished() {
+        System.out.println("in sendFinished");
         //send the digest of messages sender has sent
         String finished = "";
+        System.out.println("symkey in sendFinished: " + symKey.getEncoded().length);
         String encodedKey = Base64.getEncoder().encodeToString(symKey.getEncoded()); 
                                                                     //symKey is type SecretKey
         if (sock.isServer == true){
@@ -710,6 +732,7 @@ public class SSLlib{
             md.update(buffer);
             byte [] digest = md.digest();
             sslSendPacket(Transport.FINISHED, digest);
+            System.out.println("FINISHED sent");
         }catch (NoSuchAlgorithmException e){
             System.err.println("NoSuchAlgorithmException: ");
             e.printStackTrace();
@@ -719,7 +742,9 @@ public class SSLlib{
     // parse through a received digest, verifying that it matches the local version of the transaction
     public int parseFinished(byte[] payload) {
         //receive the digest
+        System.out.println("in parseFinished");
         String finished = "";
+        System.out.println("symkey in parseFinished: " + symKey.getEncoded().length);
         String encodedKey = Base64.getEncoder().encodeToString(symKey.getEncoded());
         if (sock.isServer == true){
             finished = String.format("%s,%s,%d,%s", ver, cipher, sessID, new String(rand_s, StandardCharsets.UTF_8));
@@ -732,13 +757,16 @@ public class SSLlib{
             md.update(buffer);
             byte [] digest = md.digest();
             if (Arrays.equals(digest, payload)){
+                System.out.println("digests match");
                 return 0;
             }
             
         }catch (NoSuchAlgorithmException e){
+
             System.err.println("NoSuchAlgorithmException: ");
             e.printStackTrace();
         }
+        System.out.println("digests DON'T match");
         return -1;
     }
 
