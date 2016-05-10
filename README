@@ -1,1 +1,1 @@
-final project for Computer Networks
+This is Shona Hemmady, Amelia Holcomb, and Vicky Tu’s final project for CPSC 433/533 Computer Networks Spring 2016 with Professor Richard Yang. We’ve written modifiedSSL, a modified implementation of SSL/TLS, on top of Shona’s implementation of TCP, on top of Fishnet. Please see the closedSSLReport.pdf to see how to run the code.
