@@ -550,12 +550,17 @@ public class SSLlib{
 			// create Pre-Master Secret - 48 random bytes, with padding to fill modulus of 128 bytes
 			SecureRandom secRand = new SecureRandom();
 			pms = new byte[48];
+
 			secRand.nextBytes(pms);
+
+            String str3 = Base64.getEncoder().encodeToString(pms);
+            System.out.println("CLIENT PMS: " + str3);
 			byte[] padding = new byte[57];
 			secRand.nextBytes(padding);
 			byte[] pmsPacket = new byte[105];
 			System.arraycopy(pms, 0, pmsPacket, 0, 48);
 			System.arraycopy(padding, 0, pmsPacket, 48, 57);
+
 			
 			// encrypt Pre-Master Secret with server's public key
 			Cipher c = Cipher.getInstance("RSA/ECB/NoPadding");
@@ -568,6 +573,10 @@ public class SSLlib{
             System.out.println("sent key");
 			
 			genSymKey();
+
+            String str1 = Base64.getEncoder().encodeToString(symKey.getEncoded());
+            System.out.println("CLIENT MASTER SECRET: " + str1);
+
 			// create symmetric key -- SIMPLIFIED FOR NOW
 			/* KeyGenerator keyGen = KeyGenerator.getInstance("AES");
 
@@ -609,10 +618,15 @@ public class SSLlib{
     			byte[] pmsPacket = c.doFinal(keyPay);
     			pms = new byte[48];
     			System.arraycopy(pmsPacket, 0, pms, 0, 48);
+
                 isKeyDone = true;
+                String str = Base64.getEncoder().encodeToString(pmsPacket);
+                System.out.println("SERVER PMS: " + str);
     			
     			// turn byte[] into symmetric key by method
     			genSymKey();
+                String str1 = Base64.getEncoder().encodeToString(symKey.getEncoded());
+                System.out.println("SERVER MASTER SECRET: " + str1);
             }
 			
 		} catch (Exception e) {
