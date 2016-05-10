@@ -5,6 +5,6 @@ time + 5
 time + 5
 # transfer dest port localPort amount [interval sz]
 1 transfer 0 21 40 50000
-time + 30000
+time + 500000
 time + 10
 exit

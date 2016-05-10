@@ -258,7 +258,6 @@ public class TCPSock {
 
         // check how much data we can send by comparing seqNum - acked
         if ((seqNum - acked) >= windowSize) {
-            System.out.println("stuck in seqnum");
             return 0;
         }
         else { // check for minimum of length desired written by client, max bytes sendable by window, buffer space in server)
@@ -272,8 +271,6 @@ public class TCPSock {
 
             int toWrite = Math.min(Transport.MAX_PAYLOAD_SIZE, (len - count));
             byte[] bufWrite = Arrays.copyOfRange(buf, pos + count, pos + count + toWrite);
-            String str = new String(bufWrite, StandardCharsets.US_ASCII);
-            System.out.println("BEFORE ENCRYPTION: " + str);
             bufWrite = sslLib.ssl_encrypt(bufWrite);
 
             Transport t;

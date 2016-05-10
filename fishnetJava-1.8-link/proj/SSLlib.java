@@ -7,7 +7,7 @@
  *
  * <p>Company: Yale University</p>
  *
- * @author Shona Hemmady, Amelia Grace Holcomb, Vicky Tu
+ * @author Shona Seema Hemmady, Amelia Grace Holcomb, Vicky Tu
  * @version 1.0
  */
 import java.util.*;
@@ -215,7 +215,6 @@ public class SSLlib{
     // returns > 1 if handshake is still incomplete 
     public int ssl_accept(){
         // SERVER STATES ARE FOR THOSE MESSAGES IT HAS RECEIVED !!!!!!!!
-        //System.out.println("ssl_accept has been called");
         if(die) {
             return -1;
         }
@@ -349,7 +348,6 @@ public class SSLlib{
             return plainText;
         }
 
-        //System.out.println("PLAIN TEXT: " +plainText);
         byte[] newBuf;
         try {
             newBuf = masterCipher.update(plainText);
@@ -357,7 +355,6 @@ public class SSLlib{
             e.printStackTrace();
             return null;
         }
-        //System.out.println(newBuf.length);
         return newBuf;
            
     }
@@ -377,23 +374,19 @@ public class SSLlib{
 
         try{
             String helo = String.format("%s,%s,%d", ver, cipher, sessID);;
-            //String str = "";
             byte[] rand;
             if (sock.isServer == true){
                 System.out.println("Server:");
                 rand_s = new byte[32];
                 gen.nextBytes(rand_s);
                 rand = rand_s;
-                //rand_s = gen.nextInt(); //may have problems if sendHelo is called multiple times
-                //str = new String(rand_s, "StandardCharsets.US_ASCII");
-                //str = Base64.getEncoder().encodeToString(rand_s);
+
             } else {
                 System.out.println("Client:");
                 rand_c = new byte[32];
                 gen.nextBytes(rand_c);
                 rand = rand_c;
-                //rand_c = gen.nextInt();//may have problems if sendHelo is called multiple times
-                //str = Base64.getEncoder().encodeToString(rand_c);
+
             }
             byte[] helo1 = helo.getBytes("UTF-8"); 
             byte[] payload = new byte[32 + helo1.length];
@@ -417,9 +410,6 @@ public class SSLlib{
             ver = tokens[0];
             cipher = tokens[1];
             sessID = Integer.parseInt(tokens[2]);
-            //int rand = Integer.parseInt(tokens[3]);
-            //byte[] rand = Base64.getDecoder().decode(tokens[3]);
-            System.out.printf("length: %d", rand.length);
             if (sock.isServer == true){
                 rand_c = rand;
             }else{
@@ -439,7 +429,6 @@ public class SSLlib{
         String cert = "";
         try {
             String pubKeyString = Base64.getEncoder().encodeToString(pubKey.getEncoded());
-            System.out.println(pubKey.getEncoded());
             cert = String.format("-----BEGIN CERTIFICATE-----%s,%s,%s,%sEND MESSAGE", 
                 domain, organization, country, pubKeyString);
         } catch (Exception ex) {
@@ -492,7 +481,6 @@ public class SSLlib{
             ex.printStackTrace();
         }
 
-
         System.out.println("parsing cert");
         //parse string into message and signature
         String[] certParse = certSoFar.split("END MESSAGE");
@@ -532,7 +520,6 @@ public class SSLlib{
 
         return true;
 
-
     }
 
     // send an S_DONE transport
@@ -550,46 +537,19 @@ public class SSLlib{
 			// create Pre-Master Secret - 48 random bytes, with padding to fill modulus of 128 bytes
 			SecureRandom secRand = new SecureRandom();
 			pms = new byte[48];
-
 			secRand.nextBytes(pms);
 
-            String str3 = Base64.getEncoder().encodeToString(pms);
-            System.out.println("CLIENT PMS: " + str3);
-			byte[] padding = new byte[57];
-			secRand.nextBytes(padding);
-			byte[] pmsPacket = new byte[105];
-			System.arraycopy(pms, 0, pmsPacket, 0, 48);
-			System.arraycopy(padding, 0, pmsPacket, 48, 57);
-
-			
 			// encrypt Pre-Master Secret with server's public key
-			Cipher c = Cipher.getInstance("RSA/ECB/NoPadding");
+			Cipher c = Cipher.getInstance("RSA");
 			c.init(Cipher.ENCRYPT_MODE, pubKey);
-			byte[] pmsEncrypted = c.doFinal(pmsPacket);
+			byte[] pmsEncrypted = c.doFinal(pms);
 
-			System.out.println("sent length: " + pmsEncrypted.length);
 			// send Pre-Master Secret 
 			sslSendPacket(Transport.C_KEYX, pmsEncrypted);
             System.out.println("sent key");
-			
+
 			genSymKey();
 
-            String str1 = Base64.getEncoder().encodeToString(symKey.getEncoded());
-            System.out.println("CLIENT MASTER SECRET: " + str1);
-
-			// create symmetric key -- SIMPLIFIED FOR NOW
-			/* KeyGenerator keyGen = KeyGenerator.getInstance("AES");
-
-			keyGen.init(128);	// to be really secure, should be 112~~~!!! 
-                                    //also work with padding once we have PMS and stuff
-			symKey = keyGen.generateKey();
-			
-			// encrypt symmetric key with public key (RSA)
-			Cipher c = Cipher.getInstance("RSA/ECB/PKCS1Padding");
-			c.init(Cipher.ENCRYPT_MODE, pubKey);
-			byte[] symEncrypted = c.doFinal(symKey.getEncoded());
-			sslSendPacket(Transport.C_KEYX, symEncrypted); */
-			
 		} catch (Exception e) {
 			System.out.println("Error caught in sendKey: ");
             e.printStackTrace();
@@ -610,23 +570,18 @@ public class SSLlib{
                 return 0;
             }
             else {
-                System.arraycopy(pay, 0, keyPay, 105, pay.length);
-    			// decrypt pms with private key (RSA), remove padding
-    			Cipher c = Cipher.getInstance("RSA/ECB/NoPadding");
+                System.arraycopy(pay, 0, keyPay, 107, 21);
+    			// decrypt pms with private key (RSA)
+
+    			Cipher c = Cipher.getInstance("RSA");
     			c.init(Cipher.DECRYPT_MODE, privKey);
 
-    			byte[] pmsPacket = c.doFinal(keyPay);
-    			pms = new byte[48];
-    			System.arraycopy(pmsPacket, 0, pms, 0, 48);
+    			pms = c.doFinal(keyPay);
 
                 isKeyDone = true;
-                String str = Base64.getEncoder().encodeToString(pmsPacket);
-                System.out.println("SERVER PMS: " + str);
     			
     			// turn byte[] into symmetric key by method
     			genSymKey();
-                String str1 = Base64.getEncoder().encodeToString(symKey.getEncoded());
-                System.out.println("SERVER MASTER SECRET: " + str1);
             }
 			
 		} catch (Exception e) {
@@ -670,7 +625,6 @@ public class SSLlib{
 				byte[] newseed = new byte[64 + p_hash1.length];
 				System.arraycopy(p_hash1, 0, newseed, 0, p_hash1.length);
 				System.arraycopy(seed, 0, newseed, p_hash1.length, 64);
-				//seed1 = newseed;
 				p_hash1prep = sha1_HMAC.doFinal(newseed);
                 byte[] p_hashnew = new byte[p_hash1.length + p_hash1prep.length];
                 System.arraycopy(p_hash1, 0, p_hashnew, 0, p_hash1.length);
@@ -688,20 +642,11 @@ public class SSLlib{
                 byte[] newseed = new byte[64 + p_hash2.length];
                 System.arraycopy(p_hash2, 0, newseed, 0, p_hash2.length);
                 System.arraycopy(seed, 0, newseed, p_hash2.length, 64);
-                //seed1 = newseed;
                 p_hash2prep = md5_HMAC.doFinal(newseed);
                 byte[] p_hashnew = new byte[p_hash2.length + p_hash2prep.length];
                 System.arraycopy(p_hash2, 0, p_hashnew, 0, p_hash2.length);
                 System.arraycopy(p_hash2prep, 0, p_hashnew, p_hash2.length, p_hash2prep.length);
                 p_hash2 = p_hashnew;
-
-                /*System.out.println("stuck in second while loop");
-				
-				byte[] newseed = new byte[64 + p_hash2.length];
-				System.arraycopy(p_hash2, 0, newseed, 0, p_hash2.length);
-				System.arraycopy(seed, 0, newseed, p_hash2.length, p_hash2.length + 64);
-				//seed1 = newseed;
-				p_hash2 = md5_HMAC.doFinal(newseed); */
 				
 			}
 			
@@ -735,15 +680,11 @@ public class SSLlib{
     // If I am a client, I send the server a digest of the msgs I have sent (rand_c)
     // send a digest of the handshake transaction in a FINISHED transport
     public void sendFinished() {
-        System.out.println("in sendFinished");
         //send the digest of messages sender has sent
         String finished = "";
-        System.out.println("symkey in sendFinished: " + symKey.getEncoded().length);
         if (sock.isServer == true){
-            System.out.println("sending from server");
             finished = String.format("%s,%s,%d,%s", ver, cipher, sessID, new String(rand_s, StandardCharsets.UTF_8));
         }else{
-            System.out.println("sending from client");
             finished = String.format("%s,%s,%d,%s", ver, cipher, sessID, new String(rand_c, StandardCharsets.UTF_8));
         }
         byte[] buffer = finished.getBytes(StandardCharsets.UTF_8);
@@ -763,9 +704,7 @@ public class SSLlib{
     // parse through a received digest, verifying that it matches the local version of the transaction
     public int parseFinished(byte[] payload) {
         //receive the digest
-        System.out.println("in parseFinished");
         String finished = "";
-        System.out.println("symkey in parseFinished: " + symKey.getEncoded().length);
         if (sock.isServer == true){
             System.out.println("checking messages  from server");
             finished = String.format("%s,%s,%d,%s", ver, cipher, sessID, new String(rand_c, StandardCharsets.UTF_8));
@@ -778,7 +717,7 @@ public class SSLlib{
             md.update(buffer);
             byte [] digest = md.digest();
             if (Arrays.equals(digest, payload)){
-                System.out.println("digests match");
+                System.out.println("Digests match");
                 return 0;
             }
             
@@ -796,9 +735,6 @@ public class SSLlib{
         
         int count = 0; // index of first byte to be written
         int len = payload.length;
-        if(type == Transport.HELO) {
-            System.out.println("SENDING A HELO!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-        }
         while (count < len) {
 
             int toWrite = Math.min((len - count), Transport.MAX_PAYLOAD_SIZE);

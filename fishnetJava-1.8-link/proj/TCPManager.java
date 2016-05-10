@@ -211,7 +211,6 @@ public class TCPManager {
 
         // if DATA, check connection, then check seqNum, then add to TCPSock buffer
         else if (type == Transport.DATA) {
-            System.out.println("receiving data");
             if (receiver.isConnected()) {
                 // if is the next packet asked for, add to TCPSock buffer if there is space and ACK
                 if (tSeqNum == receiver.acked) {
@@ -222,8 +221,6 @@ public class TCPManager {
                             byte[] tempBuf = receiver.sslLib.ssl_decrypt(t.getPayload());
                             receiver.buffer.put(tempBuf);
                             //receiver.buffer.put(t.getPayload());
-                            String str = new String(tempBuf, StandardCharsets.US_ASCII);
-                            System.out.println("TEXT AFTER DECRYPTION: " + str);
                             receiver.acked += t.getPayload().length;
                             System.out.print(":");
                             int winSize = receiver.buffer.capacity() - receiver.buffer.position();
@@ -250,7 +247,6 @@ public class TCPManager {
 
         // if type == Transport.FIN
         else if (type == Transport.FIN){ 
-            
             // receiver is connected
             if (receiver.isConnected()) {
                 // only server will receive this
@@ -283,6 +279,7 @@ public class TCPManager {
         // received a HELO packet
         //FOR ALL THESE THINGS, HAVE DYING CHECKS !!!!!#)@#RQ#EI(UFW#($#PFE)IOFWOEPFJ#QWRF)
         else if (type == Transport.HELO){
+            System.out.println("HELO received");
             if (receiver.isServer &&  receiver.sslLib.isNew()) {
                 receiver.sslLib.parseHelo(pay);
                 receiver.state = TCPSock.State.HANDSHAKE;
@@ -332,7 +329,6 @@ public class TCPManager {
         else if (type == Transport.C_KEYX){
             System.out.println("C_KEYX received");
             if (receiver.isServer && receiver.sslLib.isHelo()) {
-                System.out.println("SERVER about to parse key");
                 if (receiver.sslLib.parseKey(pay) == 1){
                     receiver.sslLib.setC_Keyx();
                 }
@@ -346,13 +342,11 @@ public class TCPManager {
         else if (type == Transport.FINISHED){
             System.out.println("FINISHED received");
             if (receiver.isServer && receiver.sslLib.isC_Keyx()) {
-                System.out.println("server got finished");
                 receiver.sslLib.parseFinished(pay);
                 receiver.sslLib.sendFinished();
                 receiver.sslLib.setFinished();
             }
             else if (!receiver.isServer && receiver.sslLib.isFinished()) {
-                System.out.println("client got FINISHED");
                 receiver.sslLib.parseFinished(pay);
                 receiver.sslLib.setDone();
             }
