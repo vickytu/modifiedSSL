@@ -65,12 +65,13 @@ public class TransferClient extends FishThread {
                 return;
             }  
 
-            if(ret < 0) {
+            if(ret <= 0) {
                 node.logOutput("Fatal SSL error");
                 sock.release();
                 this.stop();
                 return;
             }
+
 
             if (startTime == 0) {
                 // record starting time
@@ -79,6 +80,8 @@ public class TransferClient extends FishThread {
                 node.logOutput("started");
                 node.logOutput("bytes to send = " + amount);
             }
+
+
 
             if (amount == 0) {
                 // sending completed, initiate closure of connection
@@ -102,6 +105,7 @@ public class TransferClient extends FishThread {
             int len = Math.min(buf.length - index, amount);
             // System.out.println("TransferClient is sending: " + len);
             int count = sock.write(buf, index, len);
+            System.out.println("sent " + count + " bytes of data");
 
             if (count == -1) {
                 // on error, release the socket immediately

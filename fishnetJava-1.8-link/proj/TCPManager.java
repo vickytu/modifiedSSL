@@ -11,6 +11,7 @@
  * @version 1.0
  */
 import java.util.*;
+import java.nio.charset.StandardCharsets;
 
 public class TCPManager {
     private Node node;
@@ -210,6 +211,7 @@ public class TCPManager {
 
         // if DATA, check connection, then check seqNum, then add to TCPSock buffer
         else if (type == Transport.DATA) {
+            System.out.println("receiving data");
             if (receiver.isConnected()) {
                 // if is the next packet asked for, add to TCPSock buffer if there is space and ACK
                 if (tSeqNum == receiver.acked) {
@@ -217,7 +219,11 @@ public class TCPManager {
                     try {
                         // check if buffer has enough space
                         if (t.getPayload().length <= (receiver.buffer.capacity() - receiver.buffer.position())) {
-                            receiver.buffer.put(receiver.sslLib.ssl_decrypt(t.getPayload()));
+                            byte[] tempBuf = receiver.sslLib.ssl_decrypt(t.getPayload());
+                            receiver.buffer.put(tempBuf);
+                            //receiver.buffer.put(t.getPayload());
+                            String str = new String(tempBuf, StandardCharsets.US_ASCII);
+                            System.out.println("TEXT AFTER DECRYPTION: " + str);
                             receiver.acked += t.getPayload().length;
                             System.out.print(":");
                             int winSize = receiver.buffer.capacity() - receiver.buffer.position();
@@ -324,6 +330,7 @@ public class TCPManager {
         }
 
         else if (type == Transport.C_KEYX){
+            System.out.println("C_KEYX received");
             if (receiver.isServer && receiver.sslLib.isHelo()) {
                 System.out.println("SERVER about to parse key");
                 if (receiver.sslLib.parseKey(pay) == 1){
@@ -337,17 +344,21 @@ public class TCPManager {
         }
 
         else if (type == Transport.FINISHED){
+            System.out.println("FINISHED received");
             if (receiver.isServer && receiver.sslLib.isC_Keyx()) {
+                System.out.println("server got finished");
                 receiver.sslLib.parseFinished(pay);
                 receiver.sslLib.sendFinished();
                 receiver.sslLib.setFinished();
             }
-            else if (!receiver.isServer && receiver.sslLib.isHelo()) {
+            else if (!receiver.isServer && receiver.sslLib.isFinished()) {
+                System.out.println("client got FINISHED");
                 receiver.sslLib.parseFinished(pay);
                 receiver.sslLib.setDone();
             }
             else {
-                System.out.println("WhaaaT?? Redundant c_keyx ?!");
+
+                System.out.println("WhaaaT?? Redundant finished ?! ");
             }
             return;
         }
@@ -394,6 +405,18 @@ public class TCPManager {
         node.addTimer(sender.calcTimeout(), "resend", sender, n);
         sender.seqNum += pt.packet.getPayload().length;
         sender.unacked.add(pt);
+    
+        return 1;
+
+    }
+
+    // TCP packet sending, returns -1 for failure, # of packets written for success
+    // does NOT send a timer for ssl messages
+    public int sslSendPkt(int destAddr, PacketTime pt, TCPSock sender, int n) {
+        
+        System.out.print(".");
+        node.sendSegment(addr, destAddr, Protocol.TRANSPORT_PKT, pt.packet.pack());
+        //sender.seqNum += pt.packet.getPayload().length;
     
         return 1;
 

@@ -215,12 +215,17 @@ public class SSLlib{
     // returns > 1 if handshake is still incomplete 
     public int ssl_accept(){
         // SERVER STATES ARE FOR THOSE MESSAGES IT HAS RECEIVED !!!!!!!!
-        System.out.println("ssl_accept has been called");
+        //System.out.println("ssl_accept has been called");
         if(die) {
             return -1;
         }
 
-        if (sock.state == TCPSock.State.ESTABLISHED) {
+        if(sock.state == TCPSock.State.ESTABLISHED) {
+            //System.out.println("socket established, returning 1");
+            return 1;
+        }
+
+        if (sock.state == TCPSock.State.PREESTABLISHED) {
             System.out.println("Server state == ESTABLISHED");
             return 2;
         }
@@ -266,13 +271,17 @@ public class SSLlib{
     public int ssl_connect(){
         // CLIENT STATES ARE FOR THOSE MESSAGES IT IS EXPECTING !!!!!!!!
 
-        System.out.println("ssl_connect has been called");
+        //System.out.println("ssl_connect has been called");
 
         if(die) {
             return -1;
         }
 
         if(sock.state == TCPSock.State.ESTABLISHED) {
+            //System.out.println("socket established, returning 1");
+            return 1;
+        }
+        if(sock.state == TCPSock.State.PREESTABLISHED) {
             sock.state = TCPSock.State.HANDSHAKE;
             System.out.println("Client sock state == HANDSHAKE");
             sendHelo();
@@ -324,8 +333,12 @@ public class SSLlib{
             System.out.println("Warning: data is not SSL decrypted");
             return cipherText;
         }
-        
-        return masterCipher.update(cipherText);
+        try {
+            return masterCipher.update(cipherText);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
 
     }
 
@@ -336,7 +349,16 @@ public class SSLlib{
             return plainText;
         }
 
-        return masterCipher.update(plainText);
+        //System.out.println("PLAIN TEXT: " +plainText);
+        byte[] newBuf;
+        try {
+            newBuf = masterCipher.update(plainText);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+        //System.out.println(newBuf.length);
+        return newBuf;
            
     }
 
@@ -583,11 +605,7 @@ public class SSLlib{
     			// decrypt pms with private key (RSA), remove padding
     			Cipher c = Cipher.getInstance("RSA/ECB/NoPadding");
     			c.init(Cipher.DECRYPT_MODE, privKey);
-<<<<<<< HEAD
-=======
-                System.out.println("keyPay length: " + keyPay.length);
-                System.out.println("privkey length: " + privKey.getEncoded().length);
->>>>>>> de5561180ae73b19fed009182cad5bc3cbbce32f
+
     			byte[] pmsPacket = c.doFinal(keyPay);
     			pms = new byte[48];
     			System.arraycopy(pmsPacket, 0, pms, 0, 48);
@@ -653,10 +671,6 @@ public class SSLlib{
 
 			while(p_hash2.length < 16) {
 
-<<<<<<< HEAD
-=======
-                System.out.println("p_hash2 length: " + p_hash2.length);
->>>>>>> de5561180ae73b19fed009182cad5bc3cbbce32f
                 byte[] newseed = new byte[64 + p_hash2.length];
                 System.arraycopy(p_hash2, 0, newseed, 0, p_hash2.length);
                 System.arraycopy(seed, 0, newseed, p_hash2.length, 64);
@@ -687,14 +701,6 @@ public class SSLlib{
 				symKeyb[i] = (byte)(finalp1[i] ^ finalp2[i]);
 			}
 			
-<<<<<<< HEAD
-=======
-
-            if (sock.isServer)
-                System.out.println("SERVER gets to here !!!!!!");
-            else
-                System.out.println("CLIENT gets here !!!!!!");
->>>>>>> de5561180ae73b19fed009182cad5bc3cbbce32f
 			symKey = new SecretKeySpec(symKeyb, 0, 16, "ARCFOUR");
 
             masterCipher = Cipher.getInstance("ARCFOUR");
@@ -712,19 +718,19 @@ public class SSLlib{
 	}
 	
 	
-
+    // If I am a client, I send the server a digest of the msgs I have sent (rand_c)
     // send a digest of the handshake transaction in a FINISHED transport
     public void sendFinished() {
         System.out.println("in sendFinished");
         //send the digest of messages sender has sent
         String finished = "";
         System.out.println("symkey in sendFinished: " + symKey.getEncoded().length);
-        String encodedKey = Base64.getEncoder().encodeToString(symKey.getEncoded()); 
-                                                                    //symKey is type SecretKey
         if (sock.isServer == true){
+            System.out.println("sending from server");
             finished = String.format("%s,%s,%d,%s", ver, cipher, sessID, new String(rand_s, StandardCharsets.UTF_8));
         }else{
-            finished = String.format("%s,%s,%d,%s,%s", ver, cipher, sessID, new String(rand_c, StandardCharsets.UTF_8), encodedKey);
+            System.out.println("sending from client");
+            finished = String.format("%s,%s,%d,%s", ver, cipher, sessID, new String(rand_c, StandardCharsets.UTF_8));
         }
         byte[] buffer = finished.getBytes(StandardCharsets.UTF_8);
         try{
@@ -739,17 +745,18 @@ public class SSLlib{
         }
     }
 
+    // If I am a server, I check by hashing the msg I've received (rand_c)
     // parse through a received digest, verifying that it matches the local version of the transaction
     public int parseFinished(byte[] payload) {
         //receive the digest
         System.out.println("in parseFinished");
         String finished = "";
         System.out.println("symkey in parseFinished: " + symKey.getEncoded().length);
-        String encodedKey = Base64.getEncoder().encodeToString(symKey.getEncoded());
         if (sock.isServer == true){
-            finished = String.format("%s,%s,%d,%s", ver, cipher, sessID, new String(rand_s, StandardCharsets.UTF_8));
+            System.out.println("checking messages  from server");
+            finished = String.format("%s,%s,%d,%s", ver, cipher, sessID, new String(rand_c, StandardCharsets.UTF_8));
         }else{
-            finished = String.format("%s,%s,%d,%s,%s", ver, cipher, sessID, new String(rand_c, StandardCharsets.UTF_8), encodedKey);
+            finished = String.format("%s,%s,%d,%s", ver, cipher, sessID, new String(rand_s, StandardCharsets.UTF_8));
         }
         byte[] buffer = finished.getBytes(StandardCharsets.UTF_8);
         try{
@@ -775,7 +782,9 @@ public class SSLlib{
         
         int count = 0; // index of first byte to be written
         int len = payload.length;
-        
+        if(type == Transport.HELO) {
+            System.out.println("SENDING A HELO!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+        }
         while (count < len) {
 
             int toWrite = Math.min((len - count), Transport.MAX_PAYLOAD_SIZE);
@@ -794,7 +803,7 @@ public class SSLlib{
             if (t != null) {
                 PacketTime pt = new PacketTime(t, tcpMan.getMan().now());
                 count += toWrite;
-                tcpMan.sendPkt(sock.destAddr, pt, sock, sock.seqNum);
+                tcpMan.sslSendPkt(sock.destAddr, pt, sock, sock.seqNum);
             }
         }
         return 1; // success

@@ -12,6 +12,7 @@
  */
 import java.util.*;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 
 public class TCPSock {
     // TCP socket states
@@ -21,6 +22,7 @@ public class TCPSock {
         CLOSED,
         LISTEN,
         SYN_SENT,
+        PREESTABLISHED,
         ESTABLISHED,
         HANDSHAKE,
         SHUTDOWN // close requested, FIN not sent (due to unsent data in queue) 
@@ -145,7 +147,7 @@ public class TCPSock {
         // have TCPMan send ACK
         System.out.print(":");
         tcpMan.sendMsg(localPort, sock.destAddr, sock.destPort, Transport.ACK, sock.windowSize, sock.acked, this);    
-        sock.state = State.ESTABLISHED;
+        sock.state = State.PREESTABLISHED;
         return sock;
        
     }
@@ -159,11 +161,11 @@ public class TCPSock {
     }
 
     public boolean isConnected() {
-        return (state == State.ESTABLISHED || state == State.HANDSHAKE);
+        return (state == State.PREESTABLISHED || state == State.ESTABLISHED || state == State.HANDSHAKE);
     }
 
     public void connectSock() {
-        state = State.ESTABLISHED;
+        state = State.PREESTABLISHED;
     }
 
     public boolean isClosurePending() {
@@ -178,7 +180,7 @@ public class TCPSock {
      * @return int 0 on success, -1 otherwise
      */
     public int connect(int destAddr, int destPort) {
-        if (state == State.ESTABLISHED)
+        if (state == State.PREESTABLISHED)
             return 0;
         if (state != State.NEW)
             return -1;
@@ -256,6 +258,7 @@ public class TCPSock {
 
         // check how much data we can send by comparing seqNum - acked
         if ((seqNum - acked) >= windowSize) {
+            System.out.println("stuck in seqnum");
             return 0;
         }
         else { // check for minimum of length desired written by client, max bytes sendable by window, buffer space in server)
@@ -269,6 +272,8 @@ public class TCPSock {
 
             int toWrite = Math.min(Transport.MAX_PAYLOAD_SIZE, (len - count));
             byte[] bufWrite = Arrays.copyOfRange(buf, pos + count, pos + count + toWrite);
+            String str = new String(bufWrite, StandardCharsets.US_ASCII);
+            System.out.println("BEFORE ENCRYPTION: " + str);
             bufWrite = sslLib.ssl_encrypt(bufWrite);
 
             Transport t;
